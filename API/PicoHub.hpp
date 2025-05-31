@@ -4,9 +4,17 @@
 #include <Firmware/Protocol.hpp>
 
 #if defined(_PICO_HUB_API)
-	#define PICO_HUB_EXPORT __declspec(dllexport)
+	#if defined(PICO_HUB_API_WIN32)
+		#define PICO_HUB_EXPORT __declspec(dllexport)
+	#else
+		#define PICO_HUB_EXPORT 
+	#endif
 #else
-	#define PICO_HUB_EXPORT __declspec(dllimport)
+	#if defined(PICO_HUB_API_WIN32)
+		#define PICO_HUB_EXPORT __declspec(dllimport)
+	#else
+		#define PICO_HUB_EXPORT 
+	#endif
 #endif
 
 struct pico_hub;
