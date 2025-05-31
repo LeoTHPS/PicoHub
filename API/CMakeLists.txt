@@ -6,7 +6,7 @@ project(PicoHubAPI)
 
 add_library(PicoHubAPI SHARED PicoHub.cpp)
 target_compile_definitions(PicoHubAPI PRIVATE -D_PICO_HUB_API=1 PUBLIC -DPICO_HUB_DEFAULT_PORT=${PICO_HUB_DEFAULT_PORT})
-target_include_directories(PicoHubAPI PUBLIC ../ ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(PicoHubAPI PUBLIC ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../)
 set_target_properties(PicoHubAPI PROPERTIES PREFIX "" OUTPUT_NAME "PicoHub.API")
 
 if(UNIX)
