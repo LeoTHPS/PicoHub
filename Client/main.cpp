@@ -52,11 +52,11 @@ int         pico_hub_get_and_display_pinout(pico_hub* hub)
 	std::cout << "Pinout" << std::endl;
 
 	std::cout << "\tADC" << std::endl;
-	std::cout << "\t\tGPIO_26: "            << ((pinout.adc.channels & PICO_HUB_ADC_GPIO_26) ?            "Open" : "") << std::endl;
-	std::cout << "\t\tGPIO_27: "            << ((pinout.adc.channels & PICO_HUB_ADC_GPIO_27) ?            "Open" : "") << std::endl;
-	std::cout << "\t\tGPIO_28: "            << ((pinout.adc.channels & PICO_HUB_ADC_GPIO_28) ?            "Open" : "") << std::endl;
-	std::cout << "\t\tSystem Voltage: "     << ((pinout.adc.channels & PICO_HUB_ADC_SYSTEM_VOLTAGE) ?     "Open" : "") << std::endl;
-	std::cout << "\t\tSystem Temperature: " << ((pinout.adc.channels & PICO_HUB_ADC_SYSTEM_TEMPERATURE) ? "Open" : "") << std::endl;
+	if (pinout.adc.channels & PICO_HUB_ADC_GPIO_26)            std::cout << "\t\tGPIO_26" << std::endl;
+	if (pinout.adc.channels & PICO_HUB_ADC_GPIO_27)            std::cout << "\t\tGPIO_27" << std::endl;
+	if (pinout.adc.channels & PICO_HUB_ADC_GPIO_28)            std::cout << "\t\tGPIO_28" << std::endl;
+	if (pinout.adc.channels & PICO_HUB_ADC_SYSTEM_VOLTAGE)     std::cout << "\t\tSystem Voltage" << std::endl;
+	if (pinout.adc.channels & PICO_HUB_ADC_SYSTEM_TEMPERATURE) std::cout << "\t\tSystem Temperature" << std::endl;
 
 	std::cout << "\tI2C" << std::endl;
 	for (int bus = 0; bus < PICO_HUB_I2C_BUS_COUNT; ++bus)
