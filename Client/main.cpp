@@ -196,7 +196,7 @@ int main(int argc, char* argv[])
 			pico_hub_adc_deinit(hub);
 		}
 
-		if (uint8_t pwm_slice, pwm_channel; !pico_hub_pwm_get_slice_and_channel(hub, PICO_HUB_GPIO_LED, &pwm_slice, &pwm_channel))
+		if (uint8_t pwm_slice, pwm_channel; !pico_hub_pwm_get_slice_and_channel(hub, PICO_HUB_GPIO_0, &pwm_slice, &pwm_channel))
 			if (!pico_hub_pwm_init(hub, pwm_slice, 0xFFFF, 0x7FFF, 255))
 			{
 				pico_hub_pwm_set_enabled(hub, pwm_slice, true);
