@@ -264,12 +264,12 @@ struct
 	bool                   is_stopping  = false;
 	bool                   is_connected = false;
 
-	pico_hub_adc           adc                            = {};
-	pico_hub_i2c           i2c[PICO_HUB_I2C_BUS_COUNT]    = { { .bus = i2c0 }, { .bus = i2c1 } };
-	pico_hub_pwm           pwm[PICO_HUB_PWM_SLICES_COUNT] = {};
-	pico_hub_spi           spi[PICO_HUB_SPI_BUS_COUNT]    = { { .bus = spi0 }, { .bus = spi1 } };
-	pico_hub_gpio          gpio[PICO_HUB_GPIO_COUNT]      = {};
-	pico_hub_uart          uart[PICO_HUB_UART_BUS_COUNT]  = { { .bus = uart0 }, { .bus = uart1 } };
+	pico_hub_adc           adc;
+	pico_hub_i2c           i2c[PICO_HUB_I2C_BUS_COUNT];
+	pico_hub_pwm           pwm[PICO_HUB_PWM_SLICES_COUNT];
+	pico_hub_spi           spi[PICO_HUB_SPI_BUS_COUNT];
+	pico_hub_gpio          gpio[PICO_HUB_GPIO_COUNT];
+	pico_hub_uart          uart[PICO_HUB_UART_BUS_COUNT];
 
 	uint64_t               device_id      = 0;
 	uint32_t               device_clock   = SYS_CLK_HZ;
@@ -387,6 +387,16 @@ bool             pico_hub_init()
 {
 	assert(!pico_hub.is_created);
 
+	memset(&pico_hub.adc, 0, sizeof(pico_hub_adc));
+	pico_hub.i2c[PICO_HUB_I2C_BUS_0] = { .bus = i2c0 };
+	pico_hub.i2c[PICO_HUB_I2C_BUS_1] = { .bus = i2c1 };
+	memset(pico_hub.pwm, 0, sizeof(pico_hub_pwm) * PICO_HUB_PWM_SLICES_COUNT);
+	pico_hub.spi[PICO_HUB_SPI_BUS_0] = { .bus = spi0 };
+	pico_hub.spi[PICO_HUB_SPI_BUS_1] = { .bus = spi1 };
+	memset(pico_hub.gpio, 0, sizeof(pico_hub_gpio) * PICO_HUB_GPIO_COUNT);
+	pico_hub.uart[PICO_HUB_UART_BUS_0] = { .bus = uart0 };
+	pico_hub.uart[PICO_HUB_UART_BUS_1] = { .bus = uart1 };
+
 	stdio_init_all();
 	stdio_set_translate_crlf(&stdio_usb, false);
 
@@ -401,7 +411,10 @@ bool             pico_hub_init()
 	vreg_set_voltage(VREG_VOLTAGE_DEFAULT);
 	pico_hub.device_voltage = PICO_HUB_VOLTAGE_DEFAULT;
 
-	pico_hub.is_created = true;
+	pico_hub.is_created   = true;
+	pico_hub.is_running   = false;
+	pico_hub.is_stopping  = false;
+	pico_hub.is_connected = false;
 
 	pico_hub_gpio_init(PICO_HUB_GPIO_LED, true, true);
 
@@ -573,7 +586,7 @@ void             pico_hub_get_pinout_gpio(pico_hub_pinout* value)
 
 	for (int pin = 0; pin < PICO_HUB_GPIO_COUNT; ++pin)
 	{
-		if (pico_hub.gpio[pin].is_initialized)
+		if (!pico_hub.gpio[pin].is_initialized)
 			continue;
 
 		int flags = 0;
