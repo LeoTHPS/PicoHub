@@ -17,16 +17,17 @@
 	#endif
 #endif
 
-struct pico_hub;
-struct pico_hub_io;
-
 enum PICO_HUB_ERRORS
 {
 	PICO_HUB_ERROR_NONE,
 	PICO_HUB_ERROR_IO_ERROR,
+	PICO_HUB_ERROR_DATA_PENDING,
 	PICO_HUB_ERROR_REQUEST_FAILED,
-	PICO_HUB_ERROR_,
+	PICO_HUB_ERROR_DATA_NOT_AVAILABLE
 };
+
+struct pico_hub;
+struct pico_hub_io;
 
 typedef void(*pico_hub_i2c_scan_callback)(pico_hub* hub, uint8_t address, void* param);
 
@@ -43,6 +44,8 @@ extern "C"
 	PICO_HUB_EXPORT int       pico_hub_get_clock(pico_hub* hub, uint32_t* value);
 	PICO_HUB_EXPORT int       pico_hub_set_clock(pico_hub* hub, uint32_t value);
 
+	PICO_HUB_EXPORT int       pico_hub_get_pinout(pico_hub* hub, pico_hub_pinout* value);
+
 	PICO_HUB_EXPORT int       pico_hub_get_latency_ms(pico_hub* hub, uint32_t* value);
 	PICO_HUB_EXPORT int       pico_hub_get_latency_us(pico_hub* hub, uint32_t* value);
 
@@ -58,16 +61,27 @@ extern "C"
 	PICO_HUB_EXPORT int       pico_hub_adc_set_channel(pico_hub* hub, PICO_HUB_ADC value);
 	PICO_HUB_EXPORT int       pico_hub_adc_read(pico_hub* hub, uint16_t* value);
 
-	PICO_HUB_EXPORT int       pico_hub_i2c_init(pico_hub* hub, PICO_HUB_I2C bus, uint8_t scl, uint8_t sda, uint32_t baud);
+	PICO_HUB_EXPORT int       pico_hub_i2c_init(pico_hub* hub, PICO_HUB_I2C bus, uint8_t scl, uint8_t sda, uint32_t baud, uint8_t address, bool slave);
 	PICO_HUB_EXPORT int       pico_hub_i2c_deinit(pico_hub* hub, PICO_HUB_I2C bus);
 	PICO_HUB_EXPORT int       pico_hub_i2c_scan(pico_hub* hub, PICO_HUB_I2C bus, pico_hub_i2c_scan_callback callback, void* param);
-	PICO_HUB_EXPORT int       pico_hub_i2c_read(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, void* buffer, size_t size, bool stop);
-	PICO_HUB_EXPORT int       pico_hub_i2c_write(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, const void* buffer, size_t size, bool stop);
-	PICO_HUB_EXPORT int       pico_hub_i2c_write_read(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, const void* tx, size_t tx_size, void* rx, size_t rx_size);
+	PICO_HUB_EXPORT int       pico_hub_i2c_read(pico_hub* hub, PICO_HUB_I2C bus, void* buffer, size_t size, bool stop);
+	PICO_HUB_EXPORT int       pico_hub_i2c_read_ex(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, void* buffer, size_t size, bool stop);
+	PICO_HUB_EXPORT int       pico_hub_i2c_write(pico_hub* hub, PICO_HUB_I2C bus, const void* buffer, size_t size, bool stop);
+	PICO_HUB_EXPORT int       pico_hub_i2c_write_ex(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, const void* buffer, size_t size, bool stop);
+	PICO_HUB_EXPORT int       pico_hub_i2c_write_read(pico_hub* hub, PICO_HUB_I2C bus, const void* tx, size_t tx_size, void* rx, size_t rx_size);
+	PICO_HUB_EXPORT int       pico_hub_i2c_write_read_ex(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, const void* tx, size_t tx_size, void* rx, size_t rx_size);
 
-	// PICO_HUB_EXPORT int       pico_hub_pwm_init(pico_hub* hub);
-	// PICO_HUB_EXPORT int       pico_hub_pwm_deinit(pico_hub* hub);
-	// PICO_HUB_EXPORT int       pico_hub_pwm_(pico_hub* hub);
+	PICO_HUB_EXPORT int       pico_hub_pwm_get_slice_and_channel(pico_hub* hub, uint8_t pin, uint8_t* slice, uint8_t* channel);
+	PICO_HUB_EXPORT int       pico_hub_pwm_init(pico_hub* hub, uint8_t slice, uint16_t wrap, uint16_t level, float clkdiv);
+	PICO_HUB_EXPORT int       pico_hub_pwm_deinit(pico_hub* hub, uint8_t slice);
+	PICO_HUB_EXPORT int       pico_hub_pwm_get_wrap(pico_hub* hub, uint8_t slice, uint16_t* value);
+	PICO_HUB_EXPORT int       pico_hub_pwm_get_level(pico_hub* hub, uint8_t slice, uint8_t channel, uint16_t* value);
+	PICO_HUB_EXPORT int       pico_hub_pwm_get_clkdiv(pico_hub* hub, uint8_t slice, float* value);
+	PICO_HUB_EXPORT int       pico_hub_pwm_get_enabled(pico_hub* hub, uint8_t slice, bool* value);
+	PICO_HUB_EXPORT int       pico_hub_pwm_set_wrap(pico_hub* hub, uint8_t slice, uint16_t value);
+	PICO_HUB_EXPORT int       pico_hub_pwm_set_level(pico_hub* hub, uint8_t slice, uint8_t channel, uint16_t value);
+	PICO_HUB_EXPORT int       pico_hub_pwm_set_clkdiv(pico_hub* hub, uint8_t slice, float value);
+	PICO_HUB_EXPORT int       pico_hub_pwm_set_enabled(pico_hub* hub, uint8_t slice, bool set);
 
 	PICO_HUB_EXPORT int       pico_hub_spi_init(pico_hub* hub, PICO_HUB_SPI bus, uint8_t miso, uint8_t mosi, uint8_t clock, uint8_t cs, uint32_t baud, bool slave);
 	PICO_HUB_EXPORT int       pico_hub_spi_deinit(pico_hub* hub, PICO_HUB_SPI bus);

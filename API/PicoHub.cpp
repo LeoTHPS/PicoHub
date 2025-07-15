@@ -467,6 +467,19 @@ int       pico_hub_set_clock(pico_hub* hub, std::uint32_t value)
 	return PICO_HUB_ERROR_NONE;
 }
 
+int       pico_hub_get_pinout(pico_hub* hub, pico_hub_pinout* value)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_GET_PINOUT>  request;
+	pico_hub_packet_response<PICO_HUB_OPCODE_GET_PINOUT> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	*value = response.value;
+
+	return PICO_HUB_ERROR_NONE;
+}
+
 template<typename DURATION>
 int       pico_hub_get_latency(pico_hub* hub, uint32_t* value)
 {
@@ -621,14 +634,16 @@ int       pico_hub_adc_read(pico_hub* hub, uint16_t* value)
 	return PICO_HUB_ERROR_NONE;
 }
 
-int       pico_hub_i2c_init(pico_hub* hub, PICO_HUB_I2C bus, uint8_t scl, uint8_t sda, uint32_t baud)
+int       pico_hub_i2c_init(pico_hub* hub, PICO_HUB_I2C bus, uint8_t scl, uint8_t sda, uint32_t baud, uint8_t address, bool slave)
 {
 	pico_hub_packet_request<PICO_HUB_OPCODE_I2C_INIT> request =
 	{
-		.bus  = bus,
-		.scl  = scl,
-		.sda  = sda,
-		.baud = baud
+		.bus     = bus,
+		.scl     = scl,
+		.sda     = sda,
+		.baud    = baud,
+		.address = address,
+		.slave   = slave
 	};
 	pico_hub_packet_response<PICO_HUB_OPCODE_I2C_INIT> response;
 
@@ -667,7 +682,7 @@ int       pico_hub_i2c_scan(pico_hub* hub, PICO_HUB_I2C bus, pico_hub_i2c_scan_c
 		if (is_address_reserved(address))
 			continue;
 
-		switch (auto error = pico_hub_i2c_read(hub, bus, address, &data, 1, true))
+		switch (auto error = pico_hub_i2c_read_ex(hub, bus, address, &data, 1, true))
 		{
 			case PICO_HUB_ERROR_NONE:
 				callback(hub, address, param);
@@ -683,7 +698,11 @@ int       pico_hub_i2c_scan(pico_hub* hub, PICO_HUB_I2C bus, pico_hub_i2c_scan_c
 
 	return PICO_HUB_ERROR_NONE;
 }
-int       pico_hub_i2c_read(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, void* buffer, size_t size, bool stop)
+int       pico_hub_i2c_read(pico_hub* hub, PICO_HUB_I2C bus, void* buffer, size_t size, bool stop)
+{
+	return pico_hub_i2c_read_ex(hub, bus, 0, buffer, size, stop);
+}
+int       pico_hub_i2c_read_ex(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, void* buffer, size_t size, bool stop)
 {
 	pico_hub_packet_request<PICO_HUB_OPCODE_I2C_READ> request =
 	{
@@ -705,7 +724,11 @@ int       pico_hub_i2c_read(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, vo
 
 	return PICO_HUB_ERROR_NONE;
 }
-int       pico_hub_i2c_write(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, const void* buffer, size_t size, bool stop)
+int       pico_hub_i2c_write(pico_hub* hub, PICO_HUB_I2C bus, const void* buffer, size_t size, bool stop)
+{
+	return pico_hub_i2c_write_ex(hub, bus, 0, buffer, size, stop);
+}
+int       pico_hub_i2c_write_ex(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, const void* buffer, size_t size, bool stop)
 {
 	pico_hub_packet_request<PICO_HUB_OPCODE_I2C_WRITE> request =
 	{
@@ -730,7 +753,11 @@ int       pico_hub_i2c_write(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, c
 
 	return PICO_HUB_ERROR_NONE;
 }
-int       pico_hub_i2c_write_read(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, const void* tx, size_t tx_size, void* rx, size_t rx_size)
+int       pico_hub_i2c_write_read(pico_hub* hub, PICO_HUB_I2C bus, const void* tx, size_t tx_size, void* rx, size_t rx_size)
+{
+	return pico_hub_i2c_write_read_ex(hub, bus, 0, tx, tx_size, rx, rx_size);
+}
+int       pico_hub_i2c_write_read_ex(pico_hub* hub, PICO_HUB_I2C bus, uint8_t address, const void* tx, size_t tx_size, void* rx, size_t rx_size)
 {
 	pico_hub_packet_request<PICO_HUB_OPCODE_I2C_WRITE_READ> request =
 	{
@@ -754,6 +781,201 @@ int       pico_hub_i2c_write_read(pico_hub* hub, PICO_HUB_I2C bus, uint8_t addre
 
 	if (!pico_hub_io_receive(hub->io, rx, rx_size))
 		return PICO_HUB_ERROR_IO_ERROR;
+
+	return PICO_HUB_ERROR_NONE;
+}
+
+int       pico_hub_pwm_get_slice_and_channel(pico_hub* hub, uint8_t pin, uint8_t* slice, uint8_t* channel)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_GET_SLICE_AND_CHANNEL>  request =
+	{
+		.pin = pin
+	};
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_GET_SLICE_AND_CHANNEL> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	*slice   = response.slice;
+	*channel = response.channel;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_pwm_init(pico_hub* hub, uint8_t slice, uint16_t wrap, uint16_t level, float clkdiv)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_INIT> request =
+	{
+		.slice  = slice,
+		.wrap   = wrap,
+		.level  = level,
+		.clkdiv = clkdiv
+	};
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_INIT> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_pwm_deinit(pico_hub* hub, uint8_t slice)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_DEINIT> request =
+	{
+		.slice = slice
+	};
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_DEINIT> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_pwm_get_wrap(pico_hub* hub, uint8_t slice, uint16_t* value)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_GET_WRAP>  request =
+	{
+		.slice = slice
+	};
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_GET_WRAP> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	*value = response.value;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_pwm_get_level(pico_hub* hub, uint8_t slice, uint8_t channel, uint16_t* value)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_GET_LEVEL>  request =
+	{
+		.slice   = slice,
+		.channel = channel
+	};
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_GET_LEVEL> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	*value = response.value;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_pwm_get_clkdiv(pico_hub* hub, uint8_t slice, float* value)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_GET_CLKDIV>  request =
+	{
+		.slice = slice
+	};
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_GET_CLKDIV> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	*value = response.value;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_pwm_get_enabled(pico_hub* hub, uint8_t slice, bool* value)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_GET_ENABLED>  request =
+	{
+		.slice = slice
+	};
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_GET_ENABLED> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	*value = response.value;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_pwm_set_wrap(pico_hub* hub, uint8_t slice, uint16_t value)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_SET_WRAP> request =
+	{
+		.slice = slice,
+		.value = value
+	};
+
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_SET_WRAP> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_pwm_set_level(pico_hub* hub, uint8_t slice, uint8_t channel, uint16_t value)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_SET_LEVEL> request =
+	{
+		.slice   = slice,
+		.channel = channel,
+		.value   = value
+	};
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_SET_LEVEL> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_pwm_set_clkdiv(pico_hub* hub, uint8_t slice, float value)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_SET_CLKDIV> request =
+	{
+		.slice = slice,
+		.value = value
+	};
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_SET_CLKDIV> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_pwm_set_enabled(pico_hub* hub, uint8_t slice, bool set)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_PWM_SET_ENABLED> request =
+	{
+		.slice = slice,
+		.value = set
+	};
+	pico_hub_packet_response<PICO_HUB_OPCODE_PWM_SET_ENABLED> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
 
 	return PICO_HUB_ERROR_NONE;
 }

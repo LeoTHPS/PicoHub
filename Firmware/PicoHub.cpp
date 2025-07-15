@@ -25,6 +25,9 @@
 #include <hardware/clocks.h>
 #include <hardware/resets.h>
 
+static_assert(PICO_HUB_PWM_CHANNEL_A            == (int)PWM_CHAN_A);
+static_assert(PICO_HUB_PWM_CHANNEL_B            == (int)PWM_CHAN_B);
+
 // static_assert(PICO_HUB_GPIO_PULL_UP             == );
 // static_assert(PICO_HUB_GPIO_PULL_DOWN           == );
 static_assert(PICO_HUB_GPIO_LED                 == PICO_HUB_GPIO_25);
@@ -66,6 +69,7 @@ bool pico_hub_packet_handler_get_led(const void* buffer, size_t size);
 bool pico_hub_packet_handler_set_led(const void* buffer, size_t size);
 bool pico_hub_packet_handler_get_clock(const void* buffer, size_t size);
 bool pico_hub_packet_handler_set_clock(const void* buffer, size_t size);
+bool pico_hub_packet_handler_get_pinout(const void* buffer, size_t size);
 bool pico_hub_packet_handler_get_latency(const void* buffer, size_t size);
 bool pico_hub_packet_handler_get_voltage(const void* buffer, size_t size);
 bool pico_hub_packet_handler_set_voltage(const void* buffer, size_t size);
@@ -81,7 +85,17 @@ bool pico_hub_packet_handler_i2c_deinit(const void* buffer, size_t size);
 bool pico_hub_packet_handler_i2c_read(const void* buffer, size_t size);
 bool pico_hub_packet_handler_i2c_write(const void* buffer, size_t size);
 bool pico_hub_packet_handler_i2c_write_read(const void* buffer, size_t size);
-bool pico_hub_packet_handler_pwm_(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_get_slice_and_channel(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_init(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_deinit(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_get_wrap(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_get_level(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_get_clkdiv(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_get_enabled(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_set_wrap(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_set_level(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_set_clkdiv(const void* buffer, size_t size);
+bool pico_hub_packet_handler_pwm_set_enabled(const void* buffer, size_t size);
 bool pico_hub_packet_handler_spi_init(const void* buffer, size_t size);
 bool pico_hub_packet_handler_spi_deinit(const void* buffer, size_t size);
 bool pico_hub_packet_handler_spi_read(const void* buffer, size_t size);
@@ -106,56 +120,65 @@ bool pico_hub_packet_handler_uart_write(const void* buffer, size_t size);
 
 constexpr const pico_hub_packet_context pico_hub_packet_handlers[PICO_HUB_OPCODES_COUNT] =
 {
-	{ PICO_HUB_OPCODE_GET_ID,                  &pico_hub_packet_handler_get_id },
-	{ PICO_HUB_OPCODE_GET_LED,                 &pico_hub_packet_handler_get_led },
-	{ PICO_HUB_OPCODE_SET_LED,                 &pico_hub_packet_handler_set_led },
-	{ PICO_HUB_OPCODE_GET_CLOCK,               &pico_hub_packet_handler_get_clock },
-	{ PICO_HUB_OPCODE_SET_CLOCK,               &pico_hub_packet_handler_set_clock },
-	{ PICO_HUB_OPCODE_GET_LATENCY,             &pico_hub_packet_handler_get_latency },
-	{ PICO_HUB_OPCODE_GET_VOLTAGE,             &pico_hub_packet_handler_get_voltage },
-	{ PICO_HUB_OPCODE_SET_VOLTAGE,             &pico_hub_packet_handler_set_voltage },
-	{ PICO_HUB_OPCODE_RESTART,                 &pico_hub_packet_handler_restart },
-	{ PICO_HUB_OPCODE_SHUTDOWN,                &pico_hub_packet_handler_shutdown },
+	{ PICO_HUB_OPCODE_GET_ID,                    &pico_hub_packet_handler_get_id },
+	{ PICO_HUB_OPCODE_GET_LED,                   &pico_hub_packet_handler_get_led },
+	{ PICO_HUB_OPCODE_SET_LED,                   &pico_hub_packet_handler_set_led },
+	{ PICO_HUB_OPCODE_GET_CLOCK,                 &pico_hub_packet_handler_get_clock },
+	{ PICO_HUB_OPCODE_SET_CLOCK,                 &pico_hub_packet_handler_set_clock },
+	{ PICO_HUB_OPCODE_GET_PINOUT,                &pico_hub_packet_handler_get_pinout },
+	{ PICO_HUB_OPCODE_GET_LATENCY,               &pico_hub_packet_handler_get_latency },
+	{ PICO_HUB_OPCODE_GET_VOLTAGE,               &pico_hub_packet_handler_get_voltage },
+	{ PICO_HUB_OPCODE_SET_VOLTAGE,               &pico_hub_packet_handler_set_voltage },
+	{ PICO_HUB_OPCODE_RESTART,                   &pico_hub_packet_handler_restart },
+	{ PICO_HUB_OPCODE_SHUTDOWN,                  &pico_hub_packet_handler_shutdown },
 
-	{ PICO_HUB_OPCODE_ADC_INIT,                &pico_hub_packet_handler_adc_init },
-	{ PICO_HUB_OPCODE_ADC_DEINIT,              &pico_hub_packet_handler_adc_deinit },
-	{ PICO_HUB_OPCODE_ADC_GET_CHANNEL,         &pico_hub_packet_handler_adc_get_channel },
-	{ PICO_HUB_OPCODE_ADC_SET_CHANNEL,         &pico_hub_packet_handler_adc_set_channel },
-	{ PICO_HUB_OPCODE_ADC_READ,                &pico_hub_packet_handler_adc_read },
+	{ PICO_HUB_OPCODE_ADC_INIT,                  &pico_hub_packet_handler_adc_init },
+	{ PICO_HUB_OPCODE_ADC_DEINIT,                &pico_hub_packet_handler_adc_deinit },
+	{ PICO_HUB_OPCODE_ADC_GET_CHANNEL,           &pico_hub_packet_handler_adc_get_channel },
+	{ PICO_HUB_OPCODE_ADC_SET_CHANNEL,           &pico_hub_packet_handler_adc_set_channel },
+	{ PICO_HUB_OPCODE_ADC_READ,                  &pico_hub_packet_handler_adc_read },
 
-	{ PICO_HUB_OPCODE_I2C_INIT,                &pico_hub_packet_handler_i2c_init },
-	{ PICO_HUB_OPCODE_I2C_DEINIT,              &pico_hub_packet_handler_i2c_deinit },
-	{ PICO_HUB_OPCODE_I2C_READ,                &pico_hub_packet_handler_i2c_read },
-	{ PICO_HUB_OPCODE_I2C_WRITE,               &pico_hub_packet_handler_i2c_write },
-	{ PICO_HUB_OPCODE_I2C_WRITE_READ,          &pico_hub_packet_handler_i2c_write_read },
+	{ PICO_HUB_OPCODE_I2C_INIT,                  &pico_hub_packet_handler_i2c_init },
+	{ PICO_HUB_OPCODE_I2C_DEINIT,                &pico_hub_packet_handler_i2c_deinit },
+	{ PICO_HUB_OPCODE_I2C_READ,                  &pico_hub_packet_handler_i2c_read },
+	{ PICO_HUB_OPCODE_I2C_WRITE,                 &pico_hub_packet_handler_i2c_write },
+	{ PICO_HUB_OPCODE_I2C_WRITE_READ,            &pico_hub_packet_handler_i2c_write_read },
 
-	{ PICO_HUB_OPCODE_PWM_INIT,                nullptr },
-	{ PICO_HUB_OPCODE_PWM_DEINIT,              nullptr },
-	{ PICO_HUB_OPCODE_PWM_,                    nullptr },
+	{ PICO_HUB_OPCODE_PWM_GET_SLICE_AND_CHANNEL, &pico_hub_packet_handler_pwm_get_slice_and_channel },
+	{ PICO_HUB_OPCODE_PWM_INIT,                  &pico_hub_packet_handler_pwm_init },
+	{ PICO_HUB_OPCODE_PWM_DEINIT,                &pico_hub_packet_handler_pwm_deinit },
+	{ PICO_HUB_OPCODE_PWM_GET_WRAP,              &pico_hub_packet_handler_pwm_get_wrap },
+	{ PICO_HUB_OPCODE_PWM_GET_LEVEL,             &pico_hub_packet_handler_pwm_get_level },
+	{ PICO_HUB_OPCODE_PWM_GET_CLKDIV,            &pico_hub_packet_handler_pwm_get_clkdiv },
+	{ PICO_HUB_OPCODE_PWM_GET_ENABLED,           &pico_hub_packet_handler_pwm_get_enabled },
+	{ PICO_HUB_OPCODE_PWM_SET_WRAP,              &pico_hub_packet_handler_pwm_set_wrap },
+	{ PICO_HUB_OPCODE_PWM_SET_LEVEL,             &pico_hub_packet_handler_pwm_set_level },
+	{ PICO_HUB_OPCODE_PWM_SET_CLKDIV,            &pico_hub_packet_handler_pwm_set_clkdiv },
+	{ PICO_HUB_OPCODE_PWM_SET_ENABLED,           &pico_hub_packet_handler_pwm_set_enabled },
 
-	{ PICO_HUB_OPCODE_SPI_INIT,                &pico_hub_packet_handler_spi_init },
-	{ PICO_HUB_OPCODE_SPI_DEINIT,              &pico_hub_packet_handler_spi_deinit },
-	{ PICO_HUB_OPCODE_SPI_READ,                &pico_hub_packet_handler_spi_read },
-	{ PICO_HUB_OPCODE_SPI_WRITE,               &pico_hub_packet_handler_spi_write },
-	{ PICO_HUB_OPCODE_SPI_WRITE_READ,          &pico_hub_packet_handler_spi_write_read },
+	{ PICO_HUB_OPCODE_SPI_INIT,                  &pico_hub_packet_handler_spi_init },
+	{ PICO_HUB_OPCODE_SPI_DEINIT,                &pico_hub_packet_handler_spi_deinit },
+	{ PICO_HUB_OPCODE_SPI_READ,                  &pico_hub_packet_handler_spi_read },
+	{ PICO_HUB_OPCODE_SPI_WRITE,                 &pico_hub_packet_handler_spi_write },
+	{ PICO_HUB_OPCODE_SPI_WRITE_READ,            &pico_hub_packet_handler_spi_write_read },
 
-	{ PICO_HUB_OPCODE_GPIO_INIT,               &pico_hub_packet_handler_gpio_init },
-	{ PICO_HUB_OPCODE_GPIO_DEINIT,             &pico_hub_packet_handler_gpio_deinit },
-	{ PICO_HUB_OPCODE_GPIO_GET_PULL_UP,        &pico_hub_packet_handler_gpio_get_pull_up },
-	{ PICO_HUB_OPCODE_GPIO_SET_PULL_UP,        &pico_hub_packet_handler_gpio_set_pull_up },
-	{ PICO_HUB_OPCODE_GPIO_GET_PULL_DOWN,      &pico_hub_packet_handler_gpio_get_pull_down },
-	{ PICO_HUB_OPCODE_GPIO_SET_PULL_DOWN,      &pico_hub_packet_handler_gpio_set_pull_down },
-	{ PICO_HUB_OPCODE_GPIO_GET_DIRECTION,      &pico_hub_packet_handler_gpio_get_direction },
-	{ PICO_HUB_OPCODE_GPIO_SET_DIRECTION,      &pico_hub_packet_handler_gpio_set_direction },
-	{ PICO_HUB_OPCODE_GPIO_GET_DRIVE_STRENGTH, &pico_hub_packet_handler_gpio_get_drive_strength },
-	{ PICO_HUB_OPCODE_GPIO_SET_DRIVE_STRENGTH, &pico_hub_packet_handler_gpio_set_drive_strength },
-	{ PICO_HUB_OPCODE_GPIO_READ,               &pico_hub_packet_handler_gpio_read },
-	{ PICO_HUB_OPCODE_GPIO_WRITE,              &pico_hub_packet_handler_gpio_write },
+	{ PICO_HUB_OPCODE_GPIO_INIT,                 &pico_hub_packet_handler_gpio_init },
+	{ PICO_HUB_OPCODE_GPIO_DEINIT,               &pico_hub_packet_handler_gpio_deinit },
+	{ PICO_HUB_OPCODE_GPIO_GET_PULL_UP,          &pico_hub_packet_handler_gpio_get_pull_up },
+	{ PICO_HUB_OPCODE_GPIO_SET_PULL_UP,          &pico_hub_packet_handler_gpio_set_pull_up },
+	{ PICO_HUB_OPCODE_GPIO_GET_PULL_DOWN,        &pico_hub_packet_handler_gpio_get_pull_down },
+	{ PICO_HUB_OPCODE_GPIO_SET_PULL_DOWN,        &pico_hub_packet_handler_gpio_set_pull_down },
+	{ PICO_HUB_OPCODE_GPIO_GET_DIRECTION,        &pico_hub_packet_handler_gpio_get_direction },
+	{ PICO_HUB_OPCODE_GPIO_SET_DIRECTION,        &pico_hub_packet_handler_gpio_set_direction },
+	{ PICO_HUB_OPCODE_GPIO_GET_DRIVE_STRENGTH,   &pico_hub_packet_handler_gpio_get_drive_strength },
+	{ PICO_HUB_OPCODE_GPIO_SET_DRIVE_STRENGTH,   &pico_hub_packet_handler_gpio_set_drive_strength },
+	{ PICO_HUB_OPCODE_GPIO_READ,                 &pico_hub_packet_handler_gpio_read },
+	{ PICO_HUB_OPCODE_GPIO_WRITE,                &pico_hub_packet_handler_gpio_write },
 
-	{ PICO_HUB_OPCODE_UART_INIT,               &pico_hub_packet_handler_uart_init },
-	{ PICO_HUB_OPCODE_UART_DEINIT,             &pico_hub_packet_handler_uart_deinit },
-	{ PICO_HUB_OPCODE_UART_READ,               &pico_hub_packet_handler_uart_read },
-	{ PICO_HUB_OPCODE_UART_WRITE,              &pico_hub_packet_handler_uart_write }
+	{ PICO_HUB_OPCODE_UART_INIT,                 &pico_hub_packet_handler_uart_init },
+	{ PICO_HUB_OPCODE_UART_DEINIT,               &pico_hub_packet_handler_uart_deinit },
+	{ PICO_HUB_OPCODE_UART_READ,                 &pico_hub_packet_handler_uart_read },
+	{ PICO_HUB_OPCODE_UART_WRITE,                &pico_hub_packet_handler_uart_write }
 };
 
 template<size_t ... I>
@@ -167,21 +190,36 @@ static_assert(static_assert_pico_hub_packet_handlers(std::make_index_sequence<PI
 
 struct pico_hub_adc
 {
-	PICO_HUB_ADC channel;
-	PICO_HUB_ADC channels;
+	PICO_HUB_ADC channel;  // selected channel(s)
+	PICO_HUB_ADC channels; // initialized channel(s)
 };
 
 struct pico_hub_i2c
 {
+	bool        is_slave;
 	bool        is_initialized;
 
 	i2c_inst_t* bus;
 	uint32_t    baud;
+	uint8_t     address;
+
+	uint8_t     pin_scl;
+	uint8_t     pin_sda;
 };
 
+struct pico_hub_pwm_channel
+{
+	uint8_t  pin;
+	uint16_t level;
+};
 struct pico_hub_pwm
 {
-	bool is_initialized;
+	bool                 is_enabled;
+	bool                 is_initialized;
+
+	uint16_t             wrap;
+	float                clkdiv;
+	pico_hub_pwm_channel channels[PICO_HUB_PWM_CHANNELS_COUNT];
 };
 
 struct pico_hub_spi
@@ -191,13 +229,21 @@ struct pico_hub_spi
 
 	spi_inst_t* bus;
 	uint32_t    baud;
+
+	uint8_t     pin_cs;
+	uint8_t     pin_miso;
+	uint8_t     pin_mosi;
+	uint8_t     pin_sclk;
 };
 
 struct pico_hub_gpio
 {
-	bool is_low;
-	bool is_input;
-	bool is_initialized;
+	bool    is_low;
+	bool    is_input;
+	bool    is_initialized;
+
+	uint8_t pin;
+	int     function;
 };
 
 struct pico_hub_uart
@@ -206,6 +252,9 @@ struct pico_hub_uart
 
 	uart_inst_t* bus;
 	uint32_t     baud;
+
+	uint8_t      pin_rx;
+	uint8_t      pin_tx;
 };
 
 struct
@@ -215,11 +264,12 @@ struct
 	bool                   is_stopping  = false;
 	bool                   is_connected = false;
 
-	pico_hub_adc           adc                           = {};
-	pico_hub_i2c           i2c[PICO_HUB_I2C_BUS_COUNT]   = { { .bus = i2c0 }, { .bus = i2c1 } };
-	pico_hub_spi           spi[PICO_HUB_SPI_BUS_COUNT]   = { { .bus = spi0 }, { .bus = spi1 } };
-	pico_hub_gpio          gpio[PICO_HUB_GPIO_COUNT]     = {};
-	pico_hub_uart          uart[PICO_HUB_UART_BUS_COUNT] = { { .bus = uart0 }, { .bus = uart1 } };
+	pico_hub_adc           adc                            = {};
+	pico_hub_i2c           i2c[PICO_HUB_I2C_BUS_COUNT]    = { { .bus = i2c0 }, { .bus = i2c1 } };
+	pico_hub_pwm           pwm[PICO_HUB_PWM_SLICES_COUNT] = {};
+	pico_hub_spi           spi[PICO_HUB_SPI_BUS_COUNT]    = { { .bus = spi0 }, { .bus = spi1 } };
+	pico_hub_gpio          gpio[PICO_HUB_GPIO_COUNT]      = {};
+	pico_hub_uart          uart[PICO_HUB_UART_BUS_COUNT]  = { { .bus = uart0 }, { .bus = uart1 } };
 
 	uint64_t               device_id      = 0;
 	uint32_t               device_clock   = SYS_CLK_HZ;
@@ -309,6 +359,30 @@ bool pico_hub_io_receive_and_execute_request()
 	return true;
 }
 
+bool pico_hub_debug_blink(uint32_t count = 1, uint32_t delay = 500)
+{
+	bool state;
+
+	if (!pico_hub_get_led(&state))
+		return false;
+
+	for (uint32_t i = 0; i < count; )
+	{
+		if (!pico_hub_set_led(!state))
+			return false;
+
+		sleep_ms(delay);
+
+		if (!pico_hub_set_led(state))
+			return false;
+
+		if (++i < count)
+			sleep_ms(delay);
+	}
+
+	return true;
+}
+
 bool             pico_hub_init()
 {
 	assert(!pico_hub.is_created);
@@ -321,7 +395,10 @@ bool             pico_hub_init()
 	memcpy(&pico_hub.device_id, device_id.id, PICO_UNIQUE_BOARD_ID_SIZE_BYTES);
 	static_assert(sizeof(pico_hub.device_id == PICO_UNIQUE_BOARD_ID_SIZE_BYTES));
 
-	pico_hub.device_clock   = SYS_CLK_HZ;
+	set_sys_clock_hz(SYS_CLK_HZ, true);
+	pico_hub.device_clock = SYS_CLK_HZ;
+
+	vreg_set_voltage(VREG_VOLTAGE_DEFAULT);
 	pico_hub.device_voltage = PICO_HUB_VOLTAGE_DEFAULT;
 
 	pico_hub.is_created = true;
@@ -335,6 +412,9 @@ void             pico_hub_deinit()
 	if (pico_hub.is_created)
 	{
 		pico_hub_adc_deinit();
+
+		for (int slice = 0; slice < PICO_HUB_PWM_SLICES_COUNT; ++slice)
+			pico_hub_pwm_deinit(slice);
 
 		for (int i2c = 0; i2c < PICO_HUB_I2C_BUS_COUNT; ++i2c)
 			pico_hub_i2c_deinit((PICO_HUB_I2C)i2c);
@@ -352,6 +432,7 @@ void             pico_hub_deinit()
 		pico_hub_set_led(false);
 		pico_hub_gpio_deinit(PICO_HUB_GPIO_LED);
 
+		stdio_flush();
 		stdio_deinit_all();
 
 		pico_hub.is_created = false;
@@ -409,6 +490,153 @@ bool             pico_hub_set_clock(uint32_t value, bool required)
 	return true;
 }
 
+void             pico_hub_get_pinout_adc(pico_hub_pinout* value)
+{
+	value->adc.channels = pico_hub.adc.channels;
+}
+void             pico_hub_get_pinout_i2c(pico_hub_pinout* value)
+{
+	static_assert((sizeof(pico_hub_pinout::i2c) / sizeof(pico_hub_pinout::i2c[0])) == PICO_HUB_I2C_BUS_COUNT);
+
+	for (int bus = 0; bus < PICO_HUB_I2C_BUS_COUNT; ++bus)
+	{
+		if (!pico_hub.i2c[bus].is_initialized)
+			continue;
+
+		value->i2c[bus] =
+		{
+			.is_open = true,
+
+			.baud    = pico_hub.i2c[bus].baud,
+			.slave   = pico_hub.i2c[bus].is_slave,
+			.address = pico_hub.i2c[bus].address,
+			.pin_scl = pico_hub.i2c[bus].pin_scl,
+			.pin_sda = pico_hub.i2c[bus].pin_sda
+		};
+	}
+}
+void             pico_hub_get_pinout_pwm(pico_hub_pinout* value)
+{
+	static_assert((sizeof(pico_hub_pinout::pwm) / sizeof(pico_hub_pinout::pwm[0])) == PICO_HUB_PWM_SLICES_COUNT);
+
+	for (int slice = 0; slice < PICO_HUB_PWM_SLICES_COUNT; ++slice)
+	{
+		if (!pico_hub.pwm[slice].is_initialized)
+			continue;
+
+		value->pwm[slice] =
+		{
+			.is_open    = true,
+			.is_enabled = pico_hub.pwm[slice].is_enabled,
+
+			.wrap       = pico_hub.pwm[slice].wrap,
+			.clkdiv     = pico_hub.pwm[slice].clkdiv,
+			.channels   =
+			{
+				{
+					.pin   = pico_hub.pwm[slice].channels[PICO_HUB_PWM_CHANNEL_A].pin,
+					.level = pico_hub.pwm[slice].channels[PICO_HUB_PWM_CHANNEL_A].level
+				},
+				{
+					.pin   = pico_hub.pwm[slice].channels[PICO_HUB_PWM_CHANNEL_B].pin,
+					.level = pico_hub.pwm[slice].channels[PICO_HUB_PWM_CHANNEL_B].level
+				}
+			}
+		};
+	}
+}
+void             pico_hub_get_pinout_spi(pico_hub_pinout* value)
+{
+	static_assert((sizeof(pico_hub_pinout::spi) / sizeof(pico_hub_pinout::spi[0])) == PICO_HUB_SPI_BUS_COUNT);
+
+	for (int bus = 0; bus < PICO_HUB_SPI_BUS_COUNT; ++bus)
+	{
+		if (!pico_hub.spi[bus].is_initialized)
+			continue;
+
+		value->spi[bus] =
+		{
+			.is_open   = true,
+
+			.baud      = pico_hub.spi[bus].baud,
+			.slave     = pico_hub.spi[bus].is_slave,
+			.pin_cs    = pico_hub.spi[bus].pin_cs,
+			.pin_miso  = pico_hub.spi[bus].pin_miso,
+			.pin_mosi  = pico_hub.spi[bus].pin_mosi,
+			.pin_clock = pico_hub.spi[bus].pin_sclk 
+		};
+	}
+}
+void             pico_hub_get_pinout_gpio(pico_hub_pinout* value)
+{
+	static_assert((sizeof(pico_hub_pinout::gpio) / sizeof(pico_hub_pinout::gpio[0])) == PICO_HUB_GPIO_COUNT);
+
+	for (int pin = 0; pin < PICO_HUB_GPIO_COUNT; ++pin)
+	{
+		if (pico_hub.gpio[pin].is_initialized)
+			continue;
+
+		int flags = 0;
+
+		if (pico_hub.gpio[pin].is_low)
+			flags |= PICO_HUB_GPIO_FLAG_VALUE_LOW;
+		else
+			flags |= PICO_HUB_GPIO_FLAG_VALUE_HIGH;
+
+		if (pico_hub.gpio[pin].is_input)
+			flags |= PICO_HUB_GPIO_FLAG_DIRECTION_IN;
+		else
+			flags |= PICO_HUB_GPIO_FLAG_DIRECTION_OUT;
+
+		switch (pico_hub.gpio[pin].function)
+		{
+			case PICO_HUB_GPIO_FUNCTION_NONE: break;
+			case PICO_HUB_GPIO_FUNCTION_ADC:  flags |= PICO_HUB_GPIO_FLAG_FUNCTION_ADC;  break;
+			case PICO_HUB_GPIO_FUNCTION_I2C:  flags |= PICO_HUB_GPIO_FLAG_FUNCTION_I2C;  break;
+			case PICO_HUB_GPIO_FUNCTION_PWM:  flags |= PICO_HUB_GPIO_FLAG_FUNCTION_PWM;  break;
+			case PICO_HUB_GPIO_FUNCTION_SPI:  flags |= PICO_HUB_GPIO_FLAG_FUNCTION_SPI;  break;
+			case PICO_HUB_GPIO_FUNCTION_GPIO: flags |= PICO_HUB_GPIO_FLAG_FUNCTION_GPIO; break;
+			case PICO_HUB_GPIO_FUNCTION_UART: flags |= PICO_HUB_GPIO_FLAG_FUNCTION_UART; break;
+		}
+
+		value->gpio[pin] =
+		{
+			.is_open = true,
+			.flags   = (PICO_HUB_GPIO_FLAGS)flags
+		};
+	}
+}
+void             pico_hub_get_pinout_uart(pico_hub_pinout* value)
+{
+	static_assert((sizeof(pico_hub_pinout::uart) / sizeof(pico_hub_pinout::uart[0])) == PICO_HUB_UART_BUS_COUNT);
+
+	for (int bus = 0; bus < PICO_HUB_UART_BUS_COUNT; ++bus)
+	{
+		if (!pico_hub.uart[bus].is_initialized)
+			continue;
+
+		value->uart[bus] =
+		{
+			.is_open = true,
+
+			.baud    = pico_hub.uart[bus].baud,
+			.pin_rx  = pico_hub.uart[bus].pin_rx,
+			.pin_tx  = pico_hub.uart[bus].pin_tx
+		};
+	}
+}
+void             pico_hub_get_pinout(pico_hub_pinout* value)
+{
+	memset(value, 0, sizeof(pico_hub_pinout));
+
+	pico_hub_get_pinout_adc(value);
+	pico_hub_get_pinout_i2c(value);
+	pico_hub_get_pinout_pwm(value);
+	pico_hub_get_pinout_spi(value);
+	pico_hub_get_pinout_gpio(value);
+	pico_hub_get_pinout_uart(value);
+}
+
 PICO_HUB_VOLTAGE pico_hub_get_voltage()
 {
 	return pico_hub.is_created ? pico_hub.device_voltage : (PICO_HUB_VOLTAGE)0;
@@ -449,9 +677,6 @@ bool             pico_hub_adc_init(PICO_HUB_ADC channels)
 {
 	assert(pico_hub.is_created);
 
-	if (!channels)
-		return false;
-
 	if (!pico_hub.adc.channels)
 	{
 		adc_init();
@@ -460,13 +685,83 @@ bool             pico_hub_adc_init(PICO_HUB_ADC channels)
 	}
 
 	if (channels & PICO_HUB_ADC_GPIO_26)
+	{
+		if (pico_hub_gpio_is_in_use(26))
+			return false;
+
 		adc_gpio_init(26);
+		pico_hub_gpio_set_function(26, PICO_HUB_GPIO_FUNCTION_ADC);
+	}
+
 	if (channels & PICO_HUB_ADC_GPIO_27)
+	{
+		if (pico_hub_gpio_is_in_use(27))
+		{
+			if (channels & PICO_HUB_ADC_GPIO_26)
+			{
+				gpio_deinit(26);
+				pico_hub_gpio_set_function(26, PICO_HUB_GPIO_FUNCTION_NONE);
+			}
+
+			return false;
+		}
+
 		adc_gpio_init(27);
+		pico_hub_gpio_set_function(27, PICO_HUB_GPIO_FUNCTION_ADC);
+	}
+
 	if (channels & PICO_HUB_ADC_GPIO_28)
+	{
+		if (pico_hub_gpio_is_in_use(28))
+		{
+			if (channels & PICO_HUB_ADC_GPIO_27)
+			{
+				gpio_deinit(27);
+				pico_hub_gpio_set_function(27, PICO_HUB_GPIO_FUNCTION_NONE);
+			}
+
+			if (channels & PICO_HUB_ADC_GPIO_26)
+			{
+				gpio_deinit(26);
+				pico_hub_gpio_set_function(26, PICO_HUB_GPIO_FUNCTION_NONE);
+			}
+
+			return false;
+		}
+
 		adc_gpio_init(28);
+		pico_hub_gpio_set_function(28, PICO_HUB_GPIO_FUNCTION_ADC);
+	}
+
 	if (channels & PICO_HUB_ADC_SYSTEM_VOLTAGE)
+	{
+		if (pico_hub_gpio_is_in_use(29))
+		{
+			if (channels & PICO_HUB_ADC_GPIO_28)
+			{
+				gpio_deinit(28);
+				pico_hub_gpio_set_function(28, PICO_HUB_GPIO_FUNCTION_NONE);
+			}
+
+			if (channels & PICO_HUB_ADC_GPIO_27)
+			{
+				gpio_deinit(27);
+				pico_hub_gpio_set_function(27, PICO_HUB_GPIO_FUNCTION_NONE);
+			}
+
+			if (channels & PICO_HUB_ADC_GPIO_26)
+			{
+				gpio_deinit(26);
+				pico_hub_gpio_set_function(26, PICO_HUB_GPIO_FUNCTION_NONE);
+			}
+
+			return false;
+		}
+
 		adc_gpio_init(29);
+		pico_hub_gpio_set_function(29, PICO_HUB_GPIO_FUNCTION_ADC);
+	}
+
 	if (channels & PICO_HUB_ADC_SYSTEM_TEMPERATURE)
 		adc_set_temp_sensor_enabled(true);
 
@@ -481,13 +776,29 @@ void             pico_hub_adc_deinit()
 	if (auto channels = pico_hub.adc.channels)
 	{
 		if (channels & PICO_HUB_ADC_GPIO_26)
+		{
 			gpio_deinit(26);
+			pico_hub_gpio_set_function(26, PICO_HUB_GPIO_FUNCTION_NONE);
+		}
+
 		if (channels & PICO_HUB_ADC_GPIO_27)
+		{
 			gpio_deinit(27);
+			pico_hub_gpio_set_function(27, PICO_HUB_GPIO_FUNCTION_NONE);
+		}
+
 		if (channels & PICO_HUB_ADC_GPIO_28)
+		{
 			gpio_deinit(28);
+			pico_hub_gpio_set_function(28, PICO_HUB_GPIO_FUNCTION_NONE);
+		}
+
 		if (channels & PICO_HUB_ADC_SYSTEM_VOLTAGE)
+		{
 			gpio_deinit(29);
+			pico_hub_gpio_set_function(29, PICO_HUB_GPIO_FUNCTION_NONE);
+		}
+
 		if (channels & PICO_HUB_ADC_SYSTEM_TEMPERATURE)
 			adc_set_temp_sensor_enabled(false);
 
@@ -584,7 +895,7 @@ bool             pico_hub_adc_read(uint16_t* value)
 	return true;
 }
 
-bool             pico_hub_i2c_init(PICO_HUB_I2C bus, uint8_t scl, uint8_t sda, uint32_t baud)
+bool             pico_hub_i2c_init(PICO_HUB_I2C bus, uint8_t scl, uint8_t sda, uint32_t baud, uint8_t address, bool slave)
 {
 	assert(pico_hub.is_created);
 
@@ -596,14 +907,27 @@ bool             pico_hub_i2c_init(PICO_HUB_I2C bus, uint8_t scl, uint8_t sda, u
 	if (i2c->is_initialized)
 		return false;
 
+	if (pico_hub_gpio_is_in_use(scl) || pico_hub_gpio_is_in_use(sda))
+		return false;
+
 	baud = i2c_init(i2c->bus, baud);
 	gpio_set_function(sda, GPIO_FUNC_I2C);
 	gpio_set_function(scl, GPIO_FUNC_I2C);
 	gpio_pull_up(sda);
 	gpio_pull_up(scl);
 
+	if (slave)
+		i2c_set_slave_mode(i2c->bus, slave, address);
+
 	i2c->baud           = baud;
+	i2c->pin_scl        = scl;
+	i2c->pin_sda        = sda;
+	i2c->address        = address;
+	i2c->is_slave       = slave;
 	i2c->is_initialized = true;
+
+	pico_hub_gpio_set_function(scl, PICO_HUB_GPIO_FUNCTION_I2C);
+	pico_hub_gpio_set_function(sda, PICO_HUB_GPIO_FUNCTION_I2C);
 
 	return true;
 }
@@ -616,6 +940,9 @@ void             pico_hub_i2c_deinit(PICO_HUB_I2C bus)
 		{
 			i2c_deinit(i2c->bus);
 
+			pico_hub_gpio_set_function(i2c->pin_scl, PICO_HUB_GPIO_FUNCTION_NONE);
+			pico_hub_gpio_set_function(i2c->pin_sda, PICO_HUB_GPIO_FUNCTION_NONE);
+
 			i2c->is_initialized = false;
 		}
 }
@@ -625,7 +952,7 @@ bool             pico_hub_i2c_read(PICO_HUB_I2C bus, uint8_t address, void* buff
 
 	if (bus < PICO_HUB_I2C_BUS_COUNT)
 		if (auto i2c = &pico_hub.i2c[bus]; i2c->is_initialized)
-			return i2c_read_blocking(i2c->bus, address, (uint8_t*)buffer, size, !stop) != PICO_ERROR_GENERIC;
+			return i2c_read_blocking(i2c->bus, address ? address : i2c->address, (uint8_t*)buffer, size, !stop) != PICO_ERROR_GENERIC;
 
 	return false;
 }
@@ -635,7 +962,7 @@ bool             pico_hub_i2c_write(PICO_HUB_I2C bus, uint8_t address, const voi
 
 	if (bus < PICO_HUB_I2C_BUS_COUNT)
 		if (auto i2c = &pico_hub.i2c[bus]; i2c->is_initialized)
-			return i2c_write_blocking(i2c->bus, address, (uint8_t*)buffer, size, !stop) != PICO_ERROR_GENERIC;
+			return i2c_write_blocking(i2c->bus, address ? address : i2c->address, (uint8_t*)buffer, size, !stop) != PICO_ERROR_GENERIC;
 
 	return false;
 }
@@ -646,11 +973,199 @@ bool             pico_hub_i2c_write_read(PICO_HUB_I2C bus, uint8_t address, cons
 	if (bus < PICO_HUB_I2C_BUS_COUNT)
 		if (auto i2c = &pico_hub.i2c[bus]; i2c->is_initialized)
 		{
-			if (i2c_write_blocking(i2c->bus, address, (const uint8_t*)tx, tx_size, true) == PICO_ERROR_GENERIC)
+			if (i2c_write_blocking(i2c->bus, address ? address : i2c->address, (const uint8_t*)tx, tx_size, true) == PICO_ERROR_GENERIC)
 				return false;
 
-			if (i2c_read_blocking(i2c->bus, address, (uint8_t*)rx, rx_size, false) == PICO_ERROR_GENERIC)
+			if (i2c_read_blocking(i2c->bus, address ? address : i2c->address, (uint8_t*)rx, rx_size, false) == PICO_ERROR_GENERIC)
 				return false;
+
+			return true;
+		}
+
+	return false;
+}
+
+bool             pico_hub_pwm_get_slice_and_channel(uint8_t pin, uint8_t* slice, uint8_t* channel)
+{
+	if (pin >= PICO_HUB_GPIO_COUNT)
+		return false;
+
+	*slice   = pwm_gpio_to_slice_num(pin);
+	*channel = pwm_gpio_to_channel(pin);
+
+	return true;
+}
+bool             pico_hub_pwm_init(uint8_t slice, uint16_t wrap, uint16_t level, float clkdiv)
+{
+	assert(pico_hub.is_created);
+
+	if (slice >= PICO_HUB_PWM_SLICES_COUNT)
+		return false;
+
+	auto pwm = &pico_hub.pwm[slice];
+
+	if (pwm->is_initialized)
+		return false;
+
+	uint8_t ch_a = slice >> 1;
+	uint8_t ch_b = ch_a + 1;
+
+	if (pico_hub_gpio_is_in_use(ch_a) || pico_hub_gpio_is_in_use(ch_b))
+		return false;
+
+	gpio_set_function(ch_a, GPIO_FUNC_PWM);
+	gpio_set_function(ch_b, GPIO_FUNC_PWM);
+
+	pwm_set_wrap(slice, wrap);
+	pwm_set_clkdiv(slice, clkdiv);
+	pwm_set_chan_level(slice, PWM_CHAN_A, level);
+	pwm_set_chan_level(slice, PWM_CHAN_B, level);
+	pwm_set_enabled(slice, false);
+
+	pwm->wrap                             = wrap;
+	pwm->clkdiv                           = clkdiv;
+	pwm->channels[PICO_HUB_PWM_CHANNEL_A] = { .pin = ch_a, .level = level };
+	pwm->channels[PICO_HUB_PWM_CHANNEL_B] = { .pin = ch_b, .level = level };
+	pwm->is_enabled                       = false;
+	pwm->is_initialized                   = true;
+
+	pico_hub_gpio_set_function(ch_a, PICO_HUB_GPIO_FUNCTION_PWM);
+	pico_hub_gpio_set_function(ch_b, PICO_HUB_GPIO_FUNCTION_PWM);
+
+	return true;
+}
+void             pico_hub_pwm_deinit(uint8_t slice)
+{
+	assert(pico_hub.is_created);
+
+	if (slice < PICO_HUB_PWM_SLICES_COUNT)
+		if (auto pwm = &pico_hub.pwm[slice]; pwm->is_initialized)
+		{
+			pwm_set_enabled(slice, false);
+
+			gpio_deinit(pwm->channels[PICO_HUB_PWM_CHANNEL_A].pin);
+			gpio_deinit(pwm->channels[PICO_HUB_PWM_CHANNEL_B].pin);
+
+			pico_hub_gpio_set_function(pwm->channels[PICO_HUB_PWM_CHANNEL_A].pin, PICO_HUB_GPIO_FUNCTION_NONE);
+			pico_hub_gpio_set_function(pwm->channels[PICO_HUB_PWM_CHANNEL_B].pin, PICO_HUB_GPIO_FUNCTION_NONE);
+
+			pwm->is_initialized = false;
+		}
+}
+bool             pico_hub_pwm_get_wrap(uint8_t slice, uint16_t* value)
+{
+	assert(pico_hub.is_created);
+
+	if (slice < PICO_HUB_PWM_SLICES_COUNT)
+		if (auto pwm = &pico_hub.pwm[slice]; pwm->is_initialized)
+		{
+			*value = pwm->wrap;
+
+			return true;
+		}
+
+	return false;
+}
+bool             pico_hub_pwm_get_level(uint8_t slice, uint8_t channel, uint16_t* value)
+{
+	assert(pico_hub.is_created);
+
+	if ((slice < PICO_HUB_PWM_SLICES_COUNT) && (channel < PICO_HUB_PWM_CHANNELS_COUNT))
+		if (auto pwm = &pico_hub.pwm[slice]; pwm->is_initialized)
+		{
+			*value = pwm->channels[channel].level;
+
+			return true;
+		}
+
+	return false;
+}
+bool             pico_hub_pwm_get_clkdiv(uint8_t slice, float* value)
+{
+	assert(pico_hub.is_created);
+
+	if (slice < PICO_HUB_PWM_SLICES_COUNT)
+		if (auto pwm = &pico_hub.pwm[slice]; pwm->is_initialized)
+		{
+			*value = pwm->clkdiv;
+
+			return true;
+		}
+
+	return false;
+}
+bool             pico_hub_pwm_get_enabled(uint8_t slice, bool* value)
+{
+	assert(pico_hub.is_created);
+
+	if (slice < PICO_HUB_PWM_SLICES_COUNT)
+		if (auto pwm = &pico_hub.pwm[slice]; pwm->is_initialized)
+		{
+			*value = pwm->is_enabled;
+
+			return true;
+		}
+
+	return false;
+}
+bool             pico_hub_pwm_set_wrap(uint8_t slice, uint16_t value)
+{
+	assert(pico_hub.is_created);
+
+	if (slice < PICO_HUB_PWM_SLICES_COUNT)
+		if (auto pwm = &pico_hub.pwm[slice]; pwm->is_initialized)
+		{
+			pwm_set_wrap(slice, value);
+
+			pwm->wrap = value;
+
+			return true;
+		}
+
+	return false;
+}
+bool             pico_hub_pwm_set_level(uint8_t slice, uint8_t channel, uint16_t value)
+{
+	assert(pico_hub.is_created);
+
+	if ((slice < PICO_HUB_PWM_SLICES_COUNT) && (channel < PICO_HUB_PWM_CHANNELS_COUNT))
+		if (auto pwm = &pico_hub.pwm[slice]; pwm->is_initialized)
+		{
+			pwm_set_chan_level(slice, channel, value);
+
+			pwm->channels[channel].level = value;
+
+			return true;
+		}
+
+	return false;
+}
+bool             pico_hub_pwm_set_clkdiv(uint8_t slice, float value)
+{
+	assert(pico_hub.is_created);
+
+	if (slice < PICO_HUB_PWM_SLICES_COUNT)
+		if (auto pwm = &pico_hub.pwm[slice]; pwm->is_initialized)
+		{
+			pwm_set_clkdiv(slice, value);
+
+			pwm->clkdiv = value;
+
+			return true;
+		}
+
+	return false;
+}
+bool             pico_hub_pwm_set_enabled(uint8_t slice, bool set)
+{
+	assert(pico_hub.is_created);
+
+	if (slice < PICO_HUB_PWM_SLICES_COUNT)
+		if (auto pwm = &pico_hub.pwm[slice]; pwm->is_initialized)
+		{
+			pwm_set_enabled(slice, set);
+
+			pwm->is_enabled = set;
 
 			return true;
 		}
@@ -670,6 +1185,9 @@ bool             pico_hub_spi_init(PICO_HUB_SPI bus, uint8_t miso, uint8_t mosi,
 	if (spi->is_initialized)
 		return false;
 
+	if (pico_hub_gpio_is_in_use(miso) || pico_hub_gpio_is_in_use(mosi) || pico_hub_gpio_is_in_use(clock) || pico_hub_gpio_is_in_use(cs))
+		return false;
+
 	baud = spi_init(spi->bus, baud);
 	gpio_set_function(slave ? mosi : miso, GPIO_FUNC_SPI);
 	gpio_set_function(clock, GPIO_FUNC_SPI);
@@ -677,8 +1195,17 @@ bool             pico_hub_spi_init(PICO_HUB_SPI bus, uint8_t miso, uint8_t mosi,
 	gpio_set_function(cs, GPIO_FUNC_SPI);
 
 	spi->baud           = baud;
+	spi->pin_cs         = cs;
+	spi->pin_miso       = miso;
+	spi->pin_mosi       = mosi;
+	spi->pin_sclk       = clock;
 	spi->is_slave       = slave;
 	spi->is_initialized = true;
+
+	pico_hub_gpio_set_function(cs, PICO_HUB_GPIO_FUNCTION_SPI);
+	pico_hub_gpio_set_function(miso, PICO_HUB_GPIO_FUNCTION_SPI);
+	pico_hub_gpio_set_function(mosi, PICO_HUB_GPIO_FUNCTION_SPI);
+	pico_hub_gpio_set_function(clock, PICO_HUB_GPIO_FUNCTION_SPI);
 
 	return true;
 }
@@ -690,6 +1217,11 @@ void             pico_hub_spi_deinit(PICO_HUB_SPI bus)
 		if (auto spi = &pico_hub.spi[bus]; spi->is_initialized)
 		{
 			spi_deinit(spi->bus);
+
+			pico_hub_gpio_set_function(spi->pin_cs, PICO_HUB_GPIO_FUNCTION_NONE);
+			pico_hub_gpio_set_function(spi->pin_miso, PICO_HUB_GPIO_FUNCTION_NONE);
+			pico_hub_gpio_set_function(spi->pin_mosi, PICO_HUB_GPIO_FUNCTION_NONE);
+			pico_hub_gpio_set_function(spi->pin_sclk, PICO_HUB_GPIO_FUNCTION_NONE);
 
 			spi->is_initialized = false;
 		}
@@ -744,18 +1276,19 @@ bool             pico_hub_gpio_init(uint8_t pin, bool direction, bool value)
 	if (pin >= PICO_HUB_GPIO_COUNT)
 		return false;
 
-	auto gpio = &pico_hub.gpio[pin];
-
-	if (gpio->is_initialized)
+	if (pico_hub_gpio_is_in_use(pin))
 		return false;
+
+	auto gpio = &pico_hub.gpio[pin];
 
 	gpio_init(pin);
 	gpio_set_dir(pin, direction);
 	gpio_put(pin, value);
 
-	gpio->is_low         = !value;
-	gpio->is_input       = !direction;
-	gpio->is_initialized = true;
+	gpio->is_low   = !value;
+	gpio->is_input = !direction;
+
+	pico_hub_gpio_set_function(pin, PICO_HUB_GPIO_FUNCTION_GPIO);
 
 	return true;
 }
@@ -764,12 +1297,19 @@ void             pico_hub_gpio_deinit(uint8_t pin)
 	assert(pico_hub.is_created);
 
 	if (pin < PICO_HUB_GPIO_COUNT)
-		if (auto gpio = &pico_hub.gpio[pin]; gpio->is_initialized)
+		if (auto gpio = &pico_hub.gpio[pin]; gpio->is_initialized && (gpio->function == PICO_HUB_GPIO_FUNCTION_GPIO))
 		{
 			gpio_deinit(pin);
 
-			gpio->is_initialized = false;
+			pico_hub_gpio_set_function(pin, PICO_HUB_GPIO_FUNCTION_NONE);
 		}
+}
+bool             pico_hub_gpio_is_in_use(uint8_t pin)
+{
+	if (pin >= PICO_HUB_GPIO_COUNT)
+		return false;
+
+	return pico_hub.gpio[pin].is_initialized;
 }
 bool             pico_hub_gpio_get_pull_up(uint8_t pin, bool* value)
 {
@@ -826,6 +1366,34 @@ bool             pico_hub_gpio_set_pull_down(uint8_t pin, bool value)
 		}
 
 	return false;
+}
+int              pico_hub_gpio_get_function(uint8_t pin)
+{
+	assert(pico_hub.is_created);
+
+	if (pin < PICO_HUB_GPIO_COUNT)
+		if (auto gpio = &pico_hub.gpio[pin]; gpio->is_initialized)
+			return gpio->function;
+
+	return PICO_HUB_GPIO_FUNCTION_NONE;
+}
+bool             pico_hub_gpio_set_function(uint8_t pin, int value)
+{
+	assert(pico_hub.is_created);
+
+	if (pin >= PICO_HUB_GPIO_COUNT)
+		return false;
+
+	auto gpio = &pico_hub.gpio[pin];
+
+	if (gpio->is_initialized)
+		return false;
+
+	gpio->pin            = pin;
+	gpio->function       = value;
+	gpio->is_initialized = value != PICO_HUB_GPIO_FUNCTION_NONE;
+
+	return true;
 }
 bool             pico_hub_gpio_get_direction(uint8_t pin, bool* value)
 {
@@ -928,12 +1496,20 @@ bool             pico_hub_uart_init(PICO_HUB_UART bus, uint8_t rx, uint8_t tx, u
 	if (uart->is_initialized)
 		return false;
 
+	if (pico_hub_gpio_is_in_use(rx) || pico_hub_gpio_is_in_use(tx))
+		return false;
+
 	baud = uart_init(uart->bus, baud);
 	gpio_set_function(tx, UART_FUNCSEL_NUM(uart->bus, tx));
 	gpio_set_function(rx, UART_FUNCSEL_NUM(uart->bus, rx));
 
 	uart->baud           = baud;
+	uart->pin_rx         = rx;
+	uart->pin_tx         = tx;
 	uart->is_initialized = true;
+
+	pico_hub_gpio_set_function(rx, PICO_HUB_GPIO_FUNCTION_UART);
+	pico_hub_gpio_set_function(tx, PICO_HUB_GPIO_FUNCTION_UART);
 
 	return true;
 }
@@ -945,6 +1521,9 @@ void             pico_hub_uart_deinit(PICO_HUB_UART bus)
 		if (auto uart = &pico_hub.uart[bus]; uart->is_initialized)
 		{
 			uart_deinit(uart->bus);
+
+			pico_hub_gpio_set_function(uart->pin_rx, PICO_HUB_GPIO_FUNCTION_NONE);
+			pico_hub_gpio_set_function(uart->pin_tx, PICO_HUB_GPIO_FUNCTION_NONE);
 
 			uart->is_initialized = false;
 		}
@@ -1027,6 +1606,18 @@ bool             pico_hub_packet_handler_set_clock(const void* buffer, size_t si
 		return pico_hub_io_send_response<PICO_HUB_OPCODE_SET_CLOCK>({
 			.success = pico_hub_set_clock(request->value, false)
 		});
+
+	return false;
+}
+bool             pico_hub_packet_handler_get_pinout(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_GET_PINOUT>(buffer, size))
+	{
+		pico_hub_packet_response<PICO_HUB_OPCODE_GET_PINOUT> response;
+		pico_hub_get_pinout(&response.value);
+
+		return pico_hub_io_send_response(response);
+	}
 
 	return false;
 }
@@ -1141,7 +1732,7 @@ bool             pico_hub_packet_handler_i2c_init(const void* buffer, size_t siz
 	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_I2C_INIT>(buffer, size))
 	{
 		pico_hub_packet_response<PICO_HUB_OPCODE_I2C_INIT> response;
-		response.success = pico_hub_i2c_init(request->bus, request->scl, request->sda, request->baud);
+		response.success = pico_hub_i2c_init(request->bus, request->scl, request->sda, request->baud, request->address, request->slave);
 
 		return pico_hub_io_send_response(response);
 	}
@@ -1210,6 +1801,122 @@ bool             pico_hub_packet_handler_i2c_write_read(const void* buffer, size
 			return pico_hub_io_send_response(response) && (!response.success || pico_hub_io_send(&data_rx[0], request->size[1]));
 		}
 	}
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_get_slice_and_channel(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_GET_SLICE_AND_CHANNEL>(buffer, size))
+	{
+		pico_hub_packet_response<PICO_HUB_OPCODE_PWM_GET_SLICE_AND_CHANNEL> response;
+		response.success = pico_hub_pwm_get_slice_and_channel(request->pin, &response.slice, &response.channel);
+
+		return pico_hub_io_send_response(response);
+	}
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_init(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_INIT>(buffer, size))
+		return pico_hub_io_send_response<PICO_HUB_OPCODE_PWM_INIT>({
+			.success = pico_hub_pwm_init(request->slice, request->wrap, request->level, request->clkdiv)
+		});
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_deinit(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_DEINIT>(buffer, size))
+	{
+		pico_hub_pwm_deinit(request->slice);
+
+		return pico_hub_io_send_response<PICO_HUB_OPCODE_PWM_DEINIT>({});
+	}
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_get_wrap(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_GET_WRAP>(buffer, size))
+	{
+		pico_hub_packet_response<PICO_HUB_OPCODE_PWM_GET_WRAP> response;
+		response.success = pico_hub_pwm_get_wrap(request->slice, &response.value);
+
+		return pico_hub_io_send_response(response);
+	}
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_get_level(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_GET_LEVEL>(buffer, size))
+	{
+		pico_hub_packet_response<PICO_HUB_OPCODE_PWM_GET_LEVEL> response;
+		response.success = pico_hub_pwm_get_level(request->slice, request->channel, &response.value);
+
+		return pico_hub_io_send_response(response);
+	}
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_get_clkdiv(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_GET_CLKDIV>(buffer, size))
+	{
+		pico_hub_packet_response<PICO_HUB_OPCODE_PWM_GET_CLKDIV> response;
+		response.success = pico_hub_pwm_get_clkdiv(request->slice, &response.value);
+
+		return pico_hub_io_send_response(response);
+	}
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_get_enabled(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_GET_ENABLED>(buffer, size))
+	{
+		pico_hub_packet_response<PICO_HUB_OPCODE_PWM_GET_ENABLED> response;
+		response.success = pico_hub_pwm_get_enabled(request->slice, &response.value);
+
+		return pico_hub_io_send_response(response);
+	}
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_set_wrap(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_SET_WRAP>(buffer, size))
+		return pico_hub_io_send_response<PICO_HUB_OPCODE_PWM_SET_WRAP>({
+			.success = pico_hub_pwm_set_wrap(request->slice, request->value)
+		});
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_set_level(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_SET_LEVEL>(buffer, size))
+		return pico_hub_io_send_response<PICO_HUB_OPCODE_PWM_SET_LEVEL>({
+			.success = pico_hub_pwm_set_level(request->slice, request->channel, request->value)
+		});
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_set_clkdiv(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_SET_CLKDIV>(buffer, size))
+		return pico_hub_io_send_response<PICO_HUB_OPCODE_PWM_SET_CLKDIV>({
+			.success = pico_hub_pwm_set_clkdiv(request->slice, request->value)
+		});
+
+	return false;
+}
+bool             pico_hub_packet_handler_pwm_set_enabled(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_PWM_SET_ENABLED>(buffer, size))
+		return pico_hub_io_send_response<PICO_HUB_OPCODE_PWM_SET_ENABLED>({
+			.success = pico_hub_pwm_set_enabled(request->slice, request->value)
+		});
 
 	return false;
 }
