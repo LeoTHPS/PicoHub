@@ -52,6 +52,8 @@ extern "C"
 	PICO_HUB_EXPORT int       pico_hub_get_voltage(pico_hub* hub, PICO_HUB_VOLTAGE* value);
 	PICO_HUB_EXPORT int       pico_hub_set_voltage(pico_hub* hub, PICO_HUB_VOLTAGE value);
 
+	PICO_HUB_EXPORT int       pico_hub_get_features(pico_hub* hub, PICO_HUB_FEATURES* value);
+
 	PICO_HUB_EXPORT int       pico_hub_restart(pico_hub* hub, bool restart_to_mass_storage);
 	PICO_HUB_EXPORT int       pico_hub_shutdown(pico_hub* hub);
 

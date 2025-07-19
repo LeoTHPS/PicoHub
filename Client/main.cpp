@@ -1,5 +1,6 @@
 #include <PicoHub.hpp>
 
+#include <sstream>
 #include <iostream>
 
 const char* pico_hub_voltage_to_string(PICO_HUB_VOLTAGE value)
@@ -19,6 +20,35 @@ const char* pico_hub_voltage_to_string(PICO_HUB_VOLTAGE value)
 	}
 
 	return "";
+}
+
+std::string pico_hub_features_to_string(PICO_HUB_FEATURES value)
+{
+	std::stringstream ss;
+	int               offset   = 0;
+	auto              features = (uint8_t)value;
+
+	auto ss_append_if = [&ss, &offset](const char* value, bool test)
+	{
+		if (test)
+		{
+			if (offset++)
+				ss << ", ";
+
+			ss << value;
+		}
+	};
+
+	ss_append_if("PICO_HUB_FEATURE_ADC",  value & PICO_HUB_FEATURE_ADC);
+	ss_append_if("PICO_HUB_FEATURE_I2C",  value & PICO_HUB_FEATURE_I2C);
+	ss_append_if("PICO_HUB_FEATURE_PWM",  value & PICO_HUB_FEATURE_PWM);
+	ss_append_if("PICO_HUB_FEATURE_SPI",  value & PICO_HUB_FEATURE_SPI);
+	ss_append_if("PICO_HUB_FEATURE_GPIO", value & PICO_HUB_FEATURE_GPIO);
+	ss_append_if("PICO_HUB_FEATURE_UART", value & PICO_HUB_FEATURE_UART);
+	ss_append_if("PICO_HUB_FEATURE_BT",   value & PICO_HUB_FEATURE_BT);
+	ss_append_if("PICO_HUB_FEATURE_WIFI", value & PICO_HUB_FEATURE_WIFI);
+
+	return ss.str();
 }
 
 int         pico_hub_get_latency_us(pico_hub* hub, uint32_t* value, uint32_t count)
@@ -142,14 +172,15 @@ int         pico_hub_get_and_display_pinout(pico_hub* hub)
 
 int main(int argc, char* argv[])
 {
-	uint64_t         id;
-	bool             led;
-	uint32_t         clock;
-	uint32_t         latency;
-	PICO_HUB_VOLTAGE voltage;
-	uint16_t         adc_value;
+	uint64_t          id;
+	bool              led;
+	uint32_t          clock;
+	uint32_t          latency;
+	PICO_HUB_VOLTAGE  voltage;
+	PICO_HUB_FEATURES features;
+	uint16_t          adc_value;
 
-	if (auto hub = pico_hub_open("COM3"))
+	if (auto hub = pico_hub_open("\\\\.\\COM10"))
 	{
 		if (!pico_hub_get_id(hub, &id))
 			std::cout << "ID = 0x" << std::hex << id << std::dec << std::endl;
@@ -162,6 +193,9 @@ int main(int argc, char* argv[])
 
 		if (!pico_hub_get_voltage(hub, &voltage))
 			std::cout << "CPU Voltage = " << pico_hub_voltage_to_string(voltage) << std::endl;
+
+		if (!pico_hub_get_features(hub, &features))
+			std::cout << "Features = " << pico_hub_features_to_string(features) << std::endl;
 
 		if (!pico_hub_get_latency_us(hub, &latency, 1000))
 		{

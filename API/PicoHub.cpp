@@ -534,6 +534,19 @@ int       pico_hub_set_voltage(pico_hub* hub, PICO_HUB_VOLTAGE value)
 	return PICO_HUB_ERROR_NONE;
 }
 
+int       pico_hub_get_features(pico_hub* hub, PICO_HUB_FEATURES* value)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_GET_FEATURES>  request;
+	pico_hub_packet_response<PICO_HUB_OPCODE_GET_FEATURES> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	*value = response.value;
+
+	return PICO_HUB_ERROR_NONE;
+}
+
 int       pico_hub_restart(pico_hub* hub, bool restart_to_mass_storage)
 {
 	pico_hub_packet_request<PICO_HUB_OPCODE_RESTART> request =
