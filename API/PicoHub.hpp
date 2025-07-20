@@ -30,6 +30,7 @@ struct pico_hub;
 struct pico_hub_io;
 
 typedef void(*pico_hub_i2c_scan_callback)(pico_hub* hub, uint8_t address, void* param);
+typedef void(*pico_hub_wifi_scan_callback)(pico_hub* hub, const pico_hub_wifi_network* network, void* param);
 
 extern "C"
 {
@@ -51,8 +52,6 @@ extern "C"
 
 	PICO_HUB_EXPORT int       pico_hub_get_voltage(pico_hub* hub, PICO_HUB_VOLTAGE* value);
 	PICO_HUB_EXPORT int       pico_hub_set_voltage(pico_hub* hub, PICO_HUB_VOLTAGE value);
-
-	PICO_HUB_EXPORT int       pico_hub_get_features(pico_hub* hub, PICO_HUB_FEATURES* value);
 
 	PICO_HUB_EXPORT int       pico_hub_restart(pico_hub* hub, bool restart_to_mass_storage);
 	PICO_HUB_EXPORT int       pico_hub_shutdown(pico_hub* hub);
@@ -108,4 +107,10 @@ extern "C"
 	PICO_HUB_EXPORT int       pico_hub_uart_deinit(pico_hub* hub, PICO_HUB_UART bus);
 	PICO_HUB_EXPORT int       pico_hub_uart_read(pico_hub* hub, PICO_HUB_UART bus, void* buffer, size_t size);
 	PICO_HUB_EXPORT int       pico_hub_uart_write(pico_hub* hub, PICO_HUB_UART bus, const void* buffer, size_t size);
+
+	PICO_HUB_EXPORT int       pico_hub_wifi_scan(pico_hub* hub, pico_hub_wifi_scan_callback callback, void* param);
+	PICO_HUB_EXPORT int       pico_hub_wifi_ap_open(pico_hub* hub, const char* ssid, const char* passwd, PICO_HUB_WIFI_AUTH auth, uint8_t channel);
+	PICO_HUB_EXPORT int       pico_hub_wifi_ap_close(pico_hub* hub);
+	PICO_HUB_EXPORT int       pico_hub_wifi_station_connect(pico_hub* hub, const char* ssid, const char* passwd, PICO_HUB_WIFI_AUTH auth);
+	PICO_HUB_EXPORT int       pico_hub_wifi_station_disconnect(pico_hub* hub);
 }

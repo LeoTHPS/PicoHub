@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.24)
 
-set(PICO_BOARD pico)
+if(NOT DEFINED PICO_BOARD)
+	set(PICO_BOARD pico_w)
+endif()
 
 include(../PicoHub.cmake)
 include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
@@ -33,7 +35,7 @@ target_link_libraries(PicoHub
 )
 
 if(PICO_BOARD STREQUAL pico_w)
-	target_link_libraries(PicoHub pico_cyw43_arch_none)
+	target_link_libraries(PicoHub pico_lwip pico_cyw43_arch_lwip_threadsafe_background)
 	target_include_directories(PicoHub PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 endif()
 

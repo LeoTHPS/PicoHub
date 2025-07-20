@@ -1,6 +1,5 @@
 #include <PicoHub.hpp>
 
-#include <sstream>
 #include <iostream>
 
 const char* pico_hub_voltage_to_string(PICO_HUB_VOLTAGE value)
@@ -20,35 +19,6 @@ const char* pico_hub_voltage_to_string(PICO_HUB_VOLTAGE value)
 	}
 
 	return "";
-}
-
-std::string pico_hub_features_to_string(PICO_HUB_FEATURES value)
-{
-	std::stringstream ss;
-	int               offset   = 0;
-	auto              features = (uint8_t)value;
-
-	auto ss_append_if = [&ss, &offset](const char* value, bool test)
-	{
-		if (test)
-		{
-			if (offset++)
-				ss << ", ";
-
-			ss << value;
-		}
-	};
-
-	ss_append_if("PICO_HUB_FEATURE_ADC",  value & PICO_HUB_FEATURE_ADC);
-	ss_append_if("PICO_HUB_FEATURE_I2C",  value & PICO_HUB_FEATURE_I2C);
-	ss_append_if("PICO_HUB_FEATURE_PWM",  value & PICO_HUB_FEATURE_PWM);
-	ss_append_if("PICO_HUB_FEATURE_SPI",  value & PICO_HUB_FEATURE_SPI);
-	ss_append_if("PICO_HUB_FEATURE_GPIO", value & PICO_HUB_FEATURE_GPIO);
-	ss_append_if("PICO_HUB_FEATURE_UART", value & PICO_HUB_FEATURE_UART);
-	ss_append_if("PICO_HUB_FEATURE_BT",   value & PICO_HUB_FEATURE_BT);
-	ss_append_if("PICO_HUB_FEATURE_WIFI", value & PICO_HUB_FEATURE_WIFI);
-
-	return ss.str();
 }
 
 int         pico_hub_get_latency_us(pico_hub* hub, uint32_t* value, uint32_t count)
@@ -172,60 +142,64 @@ int         pico_hub_get_and_display_pinout(pico_hub* hub)
 
 int main(int argc, char* argv[])
 {
-	uint64_t          id;
-	bool              led;
-	uint32_t          clock;
-	uint32_t          latency;
-	PICO_HUB_VOLTAGE  voltage;
-	PICO_HUB_FEATURES features;
-	uint16_t          adc_value;
+	uint64_t         id;
+	bool             led;
+	uint32_t         clock;
+	uint32_t         latency;
+	PICO_HUB_VOLTAGE voltage;
+	uint16_t         adc_value;
 
 	if (auto hub = pico_hub_open("\\\\.\\COM10"))
 	{
 		if (!pico_hub_get_id(hub, &id))
-			std::cout << "ID = 0x" << std::hex << id << std::dec << std::endl;
+			std::cout << "ID:  0x" << std::hex << id << std::dec << std::endl;
 
 		if (!pico_hub_get_led(hub, &led))
-			std::cout << "LED = " << (led ? "On" : "Off") << std::endl;
+			std::cout << "LED:  " << (led ? "On" : "Off") << std::endl;
 
 		if (!pico_hub_get_clock(hub, &clock))
-			std::cout << "CPU Clock = " << (clock / 1000000.0f) << " MHz" << std::endl;
+			std::cout << "CPU Clock:  " << (clock / 1000000.0f) << " MHz" << std::endl;
 
 		if (!pico_hub_get_voltage(hub, &voltage))
-			std::cout << "CPU Voltage = " << pico_hub_voltage_to_string(voltage) << std::endl;
-
-		if (!pico_hub_get_features(hub, &features))
-			std::cout << "Features = " << pico_hub_features_to_string(features) << std::endl;
+			std::cout << "CPU Voltage:  " << pico_hub_voltage_to_string(voltage) << std::endl;
 
 		if (!pico_hub_get_latency_us(hub, &latency, 1000))
 		{
-			std::cout << "Latency Average = " << latency << " us" << std::endl;
-			std::cout << "Latency Samples = " << 1000 << std::endl;
+			std::cout << "Latency Average:  " << latency << " us" << std::endl;
+			std::cout << "Latency Samples:  " << 1000 << std::endl;
 		}
 
 		pico_hub_get_and_display_pinout(hub);
+
+		std::cout << "Scanning WiFi" << std::endl;
+		pico_hub_wifi_scan(hub, [](pico_hub* hub, const pico_hub_wifi_network* network, void* param) {
+			std::cout << "\t" << network->ssid << std::endl;
+			std::cout << "\t\tAuth: " << (int)network->auth << std::endl;
+			std::cout << "\t\tBSSID: " << std::hex << network->bssid[0] << ':' << network->bssid[1] << ':' << network->bssid[2] << ':' << network->bssid[3] << ':' << network->bssid[4] << ':' << network->bssid[5] << std::dec << std::endl;
+			std::cout << "\t\tChannel: " << (int)network->channel << std::endl;
+		}, nullptr);
 
 		if (!pico_hub_adc_init(hub, (PICO_HUB_ADC)(PICO_HUB_ADC_GPIO_26 | PICO_HUB_ADC_GPIO_27 | PICO_HUB_ADC_GPIO_28 | PICO_HUB_ADC_SYSTEM_VOLTAGE | PICO_HUB_ADC_SYSTEM_TEMPERATURE)))
 		{
 			if (!pico_hub_adc_set_channel(hub, PICO_HUB_ADC_GPIO_26))
 				if (!pico_hub_adc_read(hub, &adc_value))
-					std::cout << "ADC0 = " << adc_value << std::endl;
+					std::cout << "ADC0:  " << adc_value << std::endl;
 
 			if (!pico_hub_adc_set_channel(hub, PICO_HUB_ADC_GPIO_27))
 				if (!pico_hub_adc_read(hub, &adc_value))
-					std::cout << "ADC1 = " << adc_value << std::endl;
+					std::cout << "ADC1:  " << adc_value << std::endl;
 
 			if (!pico_hub_adc_set_channel(hub, PICO_HUB_ADC_GPIO_28))
 				if (!pico_hub_adc_read(hub, &adc_value))
-					std::cout << "ADC2 = " << adc_value << std::endl;
+					std::cout << "ADC2:  " << adc_value << std::endl;
 
 			if (!pico_hub_adc_set_channel(hub, PICO_HUB_ADC_SYSTEM_VOLTAGE))
 				if (!pico_hub_adc_read(hub, &adc_value))
-					std::cout << "ADC3 = " << adc_value << std::endl;
+					std::cout << "ADC3:  " << adc_value << std::endl;
 
 			if (!pico_hub_adc_set_channel(hub, PICO_HUB_ADC_SYSTEM_TEMPERATURE))
 				if (!pico_hub_adc_read(hub, &adc_value))
-					std::cout << "ADC4 = " << adc_value << std::endl;
+					std::cout << "ADC4:  " << adc_value << std::endl;
 
 			pico_hub_adc_deinit(hub);
 		}

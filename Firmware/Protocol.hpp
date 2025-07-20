@@ -138,6 +138,16 @@ enum PICO_HUB_UART : uint8_t
 	PICO_HUB_UART_BUS_COUNT
 };
 
+enum PICO_HUB_WIFI_AUTH : uint8_t
+{
+	PICO_HUB_WIFI_AUTH_OPEN,
+	PICO_HUB_WIFI_AUTH_WPA_TKIP_PSK,
+	PICO_HUB_WIFI_AUTH_WPA2_AES_PSK,
+	PICO_HUB_WIFI_AUTH_WPA2_MIXED_PSK,
+	PICO_HUB_WIFI_AUTH_WPA3_SAE_AES_PSK,
+	PICO_HUB_WIFI_AUTH_WPA3_WPA2_AES_PSK,
+};
+
 enum PICO_HUB_VOLTAGE : uint8_t
 {
 	PICO_HUB_VOLTAGE_0_85 = 0b00110,
@@ -167,7 +177,6 @@ enum PICO_HUB_OPCODES : uint8_t
 	PICO_HUB_OPCODE_GET_LATENCY,
 	PICO_HUB_OPCODE_GET_VOLTAGE,
 	PICO_HUB_OPCODE_SET_VOLTAGE,
-	PICO_HUB_OPCODE_GET_FEATURES,
 	PICO_HUB_OPCODE_RESTART,
 	PICO_HUB_OPCODE_SHUTDOWN,
 
@@ -219,20 +228,13 @@ enum PICO_HUB_OPCODES : uint8_t
 	PICO_HUB_OPCODE_UART_READ,
 	PICO_HUB_OPCODE_UART_WRITE,
 
+	PICO_HUB_OPCODE_WIFI_SCAN,
+	PICO_HUB_OPCODE_WIFI_AP_OPEN,
+	PICO_HUB_OPCODE_WIFI_AP_CLOSE,
+	PICO_HUB_OPCODE_WIFI_STATION_CONNECT,
+	PICO_HUB_OPCODE_WIFI_STATION_DISCONNECT,
+
 	PICO_HUB_OPCODES_COUNT
-};
-
-enum PICO_HUB_FEATURES : uint8_t
-{
-	PICO_HUB_FEATURE_ADC  = 0x1,
-	PICO_HUB_FEATURE_I2C  = 0x2,
-	PICO_HUB_FEATURE_PWM  = 0x4,
-	PICO_HUB_FEATURE_SPI  = 0x8,
-	PICO_HUB_FEATURE_GPIO = 0x10,
-	PICO_HUB_FEATURE_UART = 0x20,
-
-	PICO_HUB_FEATURE_BT   = 0x40,
-	PICO_HUB_FEATURE_WIFI = 0x80,
 };
 
 enum PICO_HUB_PACKET_TYPES : uint8_t
@@ -244,6 +246,14 @@ enum PICO_HUB_PACKET_TYPES : uint8_t
 #define PICO_HUB_PACKET(opcode, type, ...) \
 	template<> struct pico_hub_packet<opcode, type> __VA_ARGS__; \
 	static_assert(std::is_trivial<pico_hub_packet<opcode, type>>::value && std::is_standard_layout<pico_hub_packet<opcode, type>>::value)
+
+struct pico_hub_wifi_network
+{
+	PICO_HUB_WIFI_AUTH auth;
+	const char*        ssid;
+	uint8_t            bssid[6];
+	uint8_t            channel;
+};
 
 #pragma pack(push, 1)
 struct pico_hub_pinout_adc
@@ -376,8 +386,6 @@ PICO_HUB_PACKET(PICO_HUB_OPCODE_GET_VOLTAGE,               PICO_HUB_PACKET_TYPE_
 PICO_HUB_PACKET(PICO_HUB_OPCODE_GET_VOLTAGE,               PICO_HUB_PACKET_TYPE_RESPONSE, { PICO_HUB_VOLTAGE value; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_SET_VOLTAGE,               PICO_HUB_PACKET_TYPE_REQUEST,  { PICO_HUB_VOLTAGE value; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_SET_VOLTAGE,               PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; });
-PICO_HUB_PACKET(PICO_HUB_OPCODE_GET_FEATURES,              PICO_HUB_PACKET_TYPE_REQUEST,  {  });
-PICO_HUB_PACKET(PICO_HUB_OPCODE_GET_FEATURES,              PICO_HUB_PACKET_TYPE_RESPONSE, { PICO_HUB_FEATURES value; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_RESTART,                   PICO_HUB_PACKET_TYPE_REQUEST,  { bool restart_to_mass_storage; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_RESTART,                   PICO_HUB_PACKET_TYPE_RESPONSE, { });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_SHUTDOWN,                  PICO_HUB_PACKET_TYPE_REQUEST,  { });
@@ -473,6 +481,17 @@ PICO_HUB_PACKET(PICO_HUB_OPCODE_UART_READ,                 PICO_HUB_PACKET_TYPE_
 PICO_HUB_PACKET(PICO_HUB_OPCODE_UART_WRITE,                PICO_HUB_PACKET_TYPE_REQUEST,  { PICO_HUB_UART bus; uint32_t size; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_UART_WRITE,                PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; });
 
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_SCAN,                 PICO_HUB_PACKET_TYPE_REQUEST,  { });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_SCAN,                 PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; bool end; char ssid[33]; uint8_t bssid[6]; PICO_HUB_WIFI_AUTH auth; uint8_t channel; });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_AP_OPEN,              PICO_HUB_PACKET_TYPE_REQUEST,  { char ssid[33]; char passwd[40]; PICO_HUB_WIFI_AUTH auth; uint8_t channel; });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_AP_OPEN,              PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_AP_CLOSE,             PICO_HUB_PACKET_TYPE_REQUEST,  { });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_AP_CLOSE,             PICO_HUB_PACKET_TYPE_RESPONSE, { });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_STATION_CONNECT,      PICO_HUB_PACKET_TYPE_REQUEST,  { char ssid[33]; char passwd[40]; PICO_HUB_WIFI_AUTH auth; });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_STATION_CONNECT,      PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_STATION_DISCONNECT,   PICO_HUB_PACKET_TYPE_REQUEST,  { });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_STATION_DISCONNECT,   PICO_HUB_PACKET_TYPE_RESPONSE, { });
+
 union pico_hub_packets
 {
 	_pico_hub_packets<PICO_HUB_OPCODE_GET_ID>                    get_id;
@@ -489,8 +508,6 @@ union pico_hub_packets
 
 	_pico_hub_packets<PICO_HUB_OPCODE_GET_VOLTAGE>               get_voltage;
 	_pico_hub_packets<PICO_HUB_OPCODE_SET_VOLTAGE>               set_voltage;
-
-	_pico_hub_packets<PICO_HUB_OPCODE_GET_FEATURES>              get_features;
 
 	_pico_hub_packets<PICO_HUB_OPCODE_RESTART>                   restart;
 	_pico_hub_packets<PICO_HUB_OPCODE_SHUTDOWN>                  shutdown;
@@ -542,5 +559,11 @@ union pico_hub_packets
 	_pico_hub_packets<PICO_HUB_OPCODE_UART_DEINIT>               uart_deinit;
 	_pico_hub_packets<PICO_HUB_OPCODE_UART_READ>                 uart_read;
 	_pico_hub_packets<PICO_HUB_OPCODE_UART_WRITE>                uart_write;
+
+	_pico_hub_packets<PICO_HUB_OPCODE_WIFI_SCAN>                 wifi_scan;
+	_pico_hub_packets<PICO_HUB_OPCODE_WIFI_AP_OPEN>              wifi_ap_open;
+	_pico_hub_packets<PICO_HUB_OPCODE_WIFI_AP_CLOSE>             wifi_ap_close;
+	_pico_hub_packets<PICO_HUB_OPCODE_WIFI_STATION_CONNECT>      wifi_station_connect;
+	_pico_hub_packets<PICO_HUB_OPCODE_WIFI_STATION_DISCONNECT>   wifi_station_disconnect;
 };
 #pragma pack(pop)

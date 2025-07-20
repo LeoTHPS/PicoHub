@@ -534,19 +534,6 @@ int       pico_hub_set_voltage(pico_hub* hub, PICO_HUB_VOLTAGE value)
 	return PICO_HUB_ERROR_NONE;
 }
 
-int       pico_hub_get_features(pico_hub* hub, PICO_HUB_FEATURES* value)
-{
-	pico_hub_packet_request<PICO_HUB_OPCODE_GET_FEATURES>  request;
-	pico_hub_packet_response<PICO_HUB_OPCODE_GET_FEATURES> response;
-
-	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
-		return PICO_HUB_ERROR_IO_ERROR;
-
-	*value = response.value;
-
-	return PICO_HUB_ERROR_NONE;
-}
-
 int       pico_hub_restart(pico_hub* hub, bool restart_to_mass_storage)
 {
 	pico_hub_packet_request<PICO_HUB_OPCODE_RESTART> request =
@@ -1377,6 +1364,121 @@ int       pico_hub_uart_write(pico_hub* hub, PICO_HUB_UART bus, const void* buff
 
 	if (!response.success)
 		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	return PICO_HUB_ERROR_NONE;
+}
+
+int       pico_hub_wifi_scan(pico_hub* hub, pico_hub_wifi_scan_callback callback, void* param)
+{
+	pico_hub_wifi_network                               network;
+	pico_hub_packet_request<PICO_HUB_OPCODE_WIFI_SCAN>  request;
+	pico_hub_packet_response<PICO_HUB_OPCODE_WIFI_SCAN> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	while (!response.end)
+	{
+		if (!response.success)
+			return PICO_HUB_ERROR_REQUEST_FAILED;
+
+		network.auth    = response.auth;
+		network.ssid    = response.ssid;
+		network.channel = response.channel;
+		memcpy(network.bssid, response.bssid, sizeof(pico_hub_wifi_network::bssid));
+
+		callback(hub, &network, param);
+	}
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_wifi_ap_open(pico_hub* hub, const char* ssid, const char* passwd, PICO_HUB_WIFI_AUTH auth, uint8_t channel)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_WIFI_AP_OPEN> request =
+	{
+		.auth    = auth,
+		.channel = channel
+	};
+
+	if (auto length = strlen(ssid))
+	{
+		if (length >= sizeof(request.ssid))
+			length = sizeof(request.ssid - 1);
+
+		memcpy(request.ssid, ssid, length);
+	}
+
+	if (auto length = strlen(passwd))
+	{
+		if (length >= sizeof(request.passwd))
+			length = sizeof(request.passwd - 1);
+
+		memcpy(request.passwd, passwd, length);
+	}
+
+	pico_hub_packet_response<PICO_HUB_OPCODE_WIFI_AP_OPEN> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_wifi_ap_close(pico_hub* hub)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_WIFI_AP_CLOSE> request;
+	pico_hub_packet_response<PICO_HUB_OPCODE_WIFI_AP_CLOSE> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_wifi_station_connect(pico_hub* hub, const char* ssid, const char* passwd, PICO_HUB_WIFI_AUTH auth)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_WIFI_STATION_CONNECT> request =
+	{
+		.auth = auth
+	};
+
+	if (auto length = strlen(ssid))
+	{
+		if (length >= sizeof(request.ssid))
+			length = sizeof(request.ssid - 1);
+
+		memcpy(request.ssid, ssid, length);
+	}
+
+	if (auto length = strlen(passwd))
+	{
+		if (length >= sizeof(request.passwd))
+			length = sizeof(request.passwd - 1);
+
+		memcpy(request.passwd, passwd, length);
+	}
+
+	pico_hub_packet_response<PICO_HUB_OPCODE_WIFI_STATION_CONNECT> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	if (!response.success)
+		return PICO_HUB_ERROR_REQUEST_FAILED;
+
+	return PICO_HUB_ERROR_NONE;
+}
+int       pico_hub_wifi_station_disconnect(pico_hub* hub)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_WIFI_STATION_DISCONNECT> request;
+	pico_hub_packet_response<PICO_HUB_OPCODE_WIFI_STATION_DISCONNECT> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
 
 	return PICO_HUB_ERROR_NONE;
 }
