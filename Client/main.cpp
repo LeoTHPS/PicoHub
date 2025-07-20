@@ -174,8 +174,8 @@ int main(int argc, char* argv[])
 		std::cout << "Scanning WiFi" << std::endl;
 		pico_hub_wifi_scan(hub, [](pico_hub* hub, const pico_hub_wifi_network* network, void* param) {
 			std::cout << "\t" << network->ssid << std::endl;
+			std::cout << "\t\tRSSI: " << network->rssi << std::endl;
 			std::cout << "\t\tAuth: " << (int)network->auth << std::endl;
-			std::cout << "\t\tBSSID: " << std::hex << network->bssid[0] << ':' << network->bssid[1] << ':' << network->bssid[2] << ':' << network->bssid[3] << ':' << network->bssid[4] << ':' << network->bssid[5] << std::dec << std::endl;
 			std::cout << "\t\tChannel: " << (int)network->channel << std::endl;
 		}, nullptr);
 

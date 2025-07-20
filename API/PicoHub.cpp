@@ -1374,24 +1374,28 @@ int       pico_hub_wifi_scan(pico_hub* hub, pico_hub_wifi_scan_callback callback
 	pico_hub_packet_request<PICO_HUB_OPCODE_WIFI_SCAN>  request;
 	pico_hub_packet_response<PICO_HUB_OPCODE_WIFI_SCAN> response;
 
-	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+	if (!pico_hub_io_send_request(hub->io, request))
 		return PICO_HUB_ERROR_IO_ERROR;
 
-	while (!response.end)
+	do
 	{
+		if (!pico_hub_io_receive_response(hub->io, response))
+			return PICO_HUB_ERROR_IO_ERROR;
+
 		if (!response.success)
 			return PICO_HUB_ERROR_REQUEST_FAILED;
 
-		network.auth    = response.auth;
-		network.ssid    = response.ssid;
-		network.channel = response.channel;
-		memcpy(network.bssid, response.bssid, sizeof(pico_hub_wifi_network::bssid));
+		if (!response.end)
+		{
+			network.rssi    = response.rssi;
+			network.auth    = response.auth;
+			network.ssid    = response.ssid;
+			network.channel = response.channel;
+			memcpy(network.bssid, response.bssid, sizeof(pico_hub_wifi_network::bssid));
 
-		callback(hub, &network, param);
-	}
-
-	if (!response.success)
-		return PICO_HUB_ERROR_REQUEST_FAILED;
+			callback(hub, &network, param);
+		}
+	} while (!response.end);
 
 	return PICO_HUB_ERROR_NONE;
 }
@@ -1399,23 +1403,27 @@ int       pico_hub_wifi_ap_open(pico_hub* hub, const char* ssid, const char* pas
 {
 	pico_hub_packet_request<PICO_HUB_OPCODE_WIFI_AP_OPEN> request =
 	{
-		.auth    = auth,
-		.channel = channel
+		.auth          = auth,
+		.ssid_length   = 0,
+		.passwd_length = 0,
+		.channel       = channel
 	};
 
 	if (auto length = strlen(ssid))
 	{
-		if (length >= sizeof(request.ssid))
-			length = sizeof(request.ssid - 1);
+		if (length > sizeof(request.ssid))
+			length = sizeof(request.ssid);
 
+		request.ssid_length = length;
 		memcpy(request.ssid, ssid, length);
 	}
 
 	if (auto length = strlen(passwd))
 	{
-		if (length >= sizeof(request.passwd))
-			length = sizeof(request.passwd - 1);
+		if (length > sizeof(request.passwd))
+			length = sizeof(request.passwd);
 
+		request.passwd_length = length;
 		memcpy(request.passwd, passwd, length);
 	}
 
@@ -1443,22 +1451,26 @@ int       pico_hub_wifi_station_connect(pico_hub* hub, const char* ssid, const c
 {
 	pico_hub_packet_request<PICO_HUB_OPCODE_WIFI_STATION_CONNECT> request =
 	{
-		.auth = auth
+		.auth          = auth,
+		.ssid_length   = 0,
+		.passwd_length = 0
 	};
 
 	if (auto length = strlen(ssid))
 	{
-		if (length >= sizeof(request.ssid))
-			length = sizeof(request.ssid - 1);
+		if (length > sizeof(request.ssid))
+			length = sizeof(request.ssid);
 
+		request.ssid_length = length;
 		memcpy(request.ssid, ssid, length);
 	}
 
 	if (auto length = strlen(passwd))
 	{
-		if (length >= sizeof(request.passwd))
-			length = sizeof(request.passwd - 1);
+		if (length > sizeof(request.passwd))
+			length = sizeof(request.passwd);
 
+		request.passwd_length = length;
 		memcpy(request.passwd, passwd, length);
 	}
 

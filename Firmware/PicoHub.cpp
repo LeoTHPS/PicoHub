@@ -6,6 +6,7 @@
 #include <vector>
 #include <cassert>
 #include <cstring>
+#include <type_traits>
 
 #include <tusb.h>
 
@@ -321,6 +322,25 @@ struct
 	char                   packets_buffer[((sizeof(pico_hub_packet_header) + sizeof(pico_hub_packets)) * 2) + 1] = {};
 } pico_hub;
 
+template<typename F, typename ... TArgs>
+auto cyw43_arch_lwip_sync(F&& function, TArgs ... args)
+{
+	if constexpr (std::is_void<decltype(function(std::declval<TArgs>() ...))>::value)
+	{
+		cyw43_arch_lwip_begin();
+		function(std::forward<TArgs>(args) ...);
+		cyw43_arch_lwip_end();
+	}
+	else
+	{
+		cyw43_arch_lwip_begin();
+		auto result = function(std::forward<TArgs>(args) ...);
+		cyw43_arch_lwip_end();
+
+		return result;
+	}
+}
+
 bool pico_hub_io_send(const void* buffer, size_t size)
 {
 	auto value = (const uint8_t*)buffer;
@@ -542,23 +562,12 @@ bool             pico_hub_poll()
 {
 #if defined(LIB_PICO_CYW43_ARCH) && CYW43_LWIP
 	if (pico_hub.wifi.ap.is_open)
-	{
-		cyw43_arch_lwip_begin();
-
-		// TODO: update connected station list
-
-		cyw43_arch_lwip_end();
-	}
+		cyw43_arch_lwip_sync([]() {
+			// TODO: update connected station list
+		});
 
 	if (pico_hub.wifi.station.is_open)
-	{
-		cyw43_arch_lwip_begin();
-
-		auto status = cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA);
-
-		cyw43_arch_lwip_end();
-
-		switch (status)
+		switch (cyw43_arch_lwip_sync(cyw43_wifi_link_status, &cyw43_state, CYW43_ITF_STA))
 		{
 			case CYW43_LINK_UP:
 			case CYW43_LINK_JOIN:
@@ -578,7 +587,10 @@ bool             pico_hub_poll()
 				pico_hub_wifi_station_disconnect();
 				break;
 		}
-	}
+
+	#ifdef PICO_CYW43_ARCH_POLL
+	cyw43_arch_poll();
+	#endif
 #endif
 
 	if (!pico_hub_io_receive_and_execute_request())
@@ -1724,7 +1736,9 @@ bool             pico_hub_uart_write(PICO_HUB_UART bus, const void* buffer, size
 	return true;
 }
 
-bool             pico_hub_wifi_scan(pico_hub_wifi_scan_callback callback, void* param)
+// @return 0 on error
+// @return -1 on callback returned false
+int              pico_hub_wifi_scan(pico_hub_wifi_scan_callback callback, void* param)
 {
 #if defined(LIB_PICO_CYW43_ARCH) && CYW43_LWIP
 	struct wifi_scan_context
@@ -1745,33 +1759,47 @@ bool             pico_hub_wifi_scan(pico_hub_wifi_scan_callback callback, void* 
 	{
 		auto context = (wifi_scan_context*)param;
 
-		context->network_ssid.assign((const char*)result->ssid, result->ssid_len);
+		if (!context->error)
+		{
+			context->network_ssid.assign((const char*)result->ssid, result->ssid_len);
 
-		context->network.auth    = pico_hub_wifi_auth_from_cyw43(result->auth_mode);
-		context->network.ssid    = context->network_ssid.c_str();
-		context->network.channel = (uint8_t)result->channel;
-		memcpy(context->network.bssid, result->bssid, 6);
+			context->network.rssi    = result->rssi;
+			context->network.auth    = pico_hub_wifi_auth_from_cyw43(result->auth_mode);
+			context->network.ssid    = context->network_ssid.c_str();
+			context->network.channel = (uint8_t)result->channel;
+			memcpy(context->network.bssid, result->bssid, 6);
 
-		if (!context->error && !context->callback(&context->network, context->callback_param))
-			context->error = true;
+			if (!context->callback(&context->network, context->callback_param))
+				context->error = true;
+		}
 
 		return 0;
 	};
 
-	cyw43_arch_lwip_begin();
+	if (!pico_hub.wifi.station.is_open)
+		cyw43_arch_enable_sta_mode();
 
-	if (auto error = cyw43_wifi_scan(&cyw43_state, &options, &context, on_result))
+	if (auto error = cyw43_arch_lwip_sync(cyw43_wifi_scan, &cyw43_state, &options, &context, on_result))
 	{
-		cyw43_arch_lwip_end();
+		if (!pico_hub.wifi.station.is_open)
+			cyw43_arch_disable_sta_mode();
 
-		return false;
+		return 0;
 	}
 
-	cyw43_arch_lwip_end();
+	while (cyw43_arch_lwip_sync(cyw43_wifi_scan_active, &cyw43_state))
+	{
+	#ifdef PICO_CYW43_ARCH_POLL
+		cyw43_arch_poll();
+	#endif
+	}
 
-	return true;
+	if (!pico_hub.wifi.station.is_open)
+		cyw43_arch_disable_sta_mode();
+
+	return context.error ? -1 : 1;
 #else
-	return false;
+	return 0;
 #endif
 }
 bool             pico_hub_wifi_ap_open(const char* ssid, const char* passwd, PICO_HUB_WIFI_AUTH auth, uint8_t channel)
@@ -1780,14 +1808,10 @@ bool             pico_hub_wifi_ap_open(const char* ssid, const char* passwd, PIC
 	if (pico_hub.wifi.ap.is_open)
 		pico_hub_wifi_ap_close();
 
-	cyw43_arch_lwip_begin();
-
-	if (channel)
-		cyw43_wifi_ap_set_channel(&cyw43_state, channel);
-	else
+	if (channel == 0)
 		channel = cyw43_state.ap_channel;
-
-	cyw43_arch_lwip_end();
+	else
+		cyw43_arch_lwip_sync(cyw43_wifi_ap_set_channel, &cyw43_state, channel);
 
 	cyw43_arch_enable_ap_mode(ssid, passwd, pico_hub_wifi_auth_to_cyw43(auth));
 
@@ -2501,13 +2525,15 @@ bool             pico_hub_packet_handler_wifi_scan(const void* buffer, size_t si
 		pico_hub_wifi_scan_callback                         callback([](const pico_hub_wifi_network* network, void* param) {
 			auto response = (pico_hub_packet_response<PICO_HUB_OPCODE_WIFI_SCAN>*)param;
 
-			response->auth    = network->auth;
-			response->channel = network->channel;
+			response->rssi        = network->rssi;
+			response->auth        = network->auth;
+			response->channel     = network->channel;
+			response->ssid_length = 0;
 
 			if (auto length = strlen(network->ssid))
 			{
-				if (length >= sizeof(response->ssid))
-					length = sizeof(response->ssid) - 1;
+				if (length > sizeof(response->ssid))
+					length = sizeof(response->ssid);
 
 				memcpy(response->ssid, network->ssid, length);
 			}
@@ -2517,10 +2543,10 @@ bool             pico_hub_packet_handler_wifi_scan(const void* buffer, size_t si
 			return pico_hub_io_send_response(*response);
 		});
 
-		response.end     = true;
-		response.success = pico_hub_wifi_scan(callback, &response);
-
-		return pico_hub_io_send_response(response);
+		return pico_hub_io_send_response<PICO_HUB_OPCODE_WIFI_SCAN>({
+			.success = pico_hub_wifi_scan(callback, &response) > 0,
+			.end     = true
+		});
 	}
 
 	return false;
@@ -2528,9 +2554,14 @@ bool             pico_hub_packet_handler_wifi_scan(const void* buffer, size_t si
 bool             pico_hub_packet_handler_wifi_ap_open(const void* buffer, size_t size)
 {
 	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_WIFI_AP_OPEN>(buffer, size))
+	{
+		std::string ssid(request->ssid, request->ssid_length);
+		std::string passwd(request->passwd, request->passwd_length);
+
 		return pico_hub_io_send_response<PICO_HUB_OPCODE_WIFI_AP_OPEN>({
-			.success = pico_hub_wifi_ap_open(request->ssid, request->passwd, request->auth, request->channel)
+			.success = pico_hub_wifi_ap_open(ssid.c_str(), passwd.c_str(), request->auth, request->channel)
 		});
+	}
 
 	return false;
 }
@@ -2548,9 +2579,14 @@ bool             pico_hub_packet_handler_wifi_ap_close(const void* buffer, size_
 bool             pico_hub_packet_handler_wifi_station_connect(const void* buffer, size_t size)
 {
 	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_WIFI_STATION_CONNECT>(buffer, size))
+	{
+		std::string ssid(request->ssid, request->ssid_length);
+		std::string passwd(request->passwd, request->passwd_length);
+
 		return pico_hub_io_send_response<PICO_HUB_OPCODE_WIFI_STATION_CONNECT>({
-			.success = pico_hub_wifi_station_connect(request->ssid, request->passwd, request->auth)
+			.success = pico_hub_wifi_station_connect(ssid.c_str(), passwd.c_str(), request->auth)
 		});
+	}
 
 	return false;
 }

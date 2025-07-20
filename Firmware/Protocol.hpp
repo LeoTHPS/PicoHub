@@ -249,6 +249,7 @@ enum PICO_HUB_PACKET_TYPES : uint8_t
 
 struct pico_hub_wifi_network
 {
+	int16_t            rssi;
 	PICO_HUB_WIFI_AUTH auth;
 	const char*        ssid;
 	uint8_t            bssid[6];
@@ -482,12 +483,12 @@ PICO_HUB_PACKET(PICO_HUB_OPCODE_UART_WRITE,                PICO_HUB_PACKET_TYPE_
 PICO_HUB_PACKET(PICO_HUB_OPCODE_UART_WRITE,                PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; });
 
 PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_SCAN,                 PICO_HUB_PACKET_TYPE_REQUEST,  { });
-PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_SCAN,                 PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; bool end; char ssid[33]; uint8_t bssid[6]; PICO_HUB_WIFI_AUTH auth; uint8_t channel; });
-PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_AP_OPEN,              PICO_HUB_PACKET_TYPE_REQUEST,  { char ssid[33]; char passwd[40]; PICO_HUB_WIFI_AUTH auth; uint8_t channel; });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_SCAN,                 PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; bool end; PICO_HUB_WIFI_AUTH auth; char ssid[32]; uint8_t ssid_length; uint8_t bssid[6]; int16_t rssi; uint8_t channel; });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_AP_OPEN,              PICO_HUB_PACKET_TYPE_REQUEST,  { PICO_HUB_WIFI_AUTH auth; char ssid[32]; uint8_t ssid_length; char passwd[40]; uint8_t passwd_length; uint8_t channel; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_AP_OPEN,              PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_AP_CLOSE,             PICO_HUB_PACKET_TYPE_REQUEST,  { });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_AP_CLOSE,             PICO_HUB_PACKET_TYPE_RESPONSE, { });
-PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_STATION_CONNECT,      PICO_HUB_PACKET_TYPE_REQUEST,  { char ssid[33]; char passwd[40]; PICO_HUB_WIFI_AUTH auth; });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_STATION_CONNECT,      PICO_HUB_PACKET_TYPE_REQUEST,  { PICO_HUB_WIFI_AUTH auth; char ssid[32]; uint8_t ssid_length; char passwd[40]; uint8_t passwd_length; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_STATION_CONNECT,      PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_STATION_DISCONNECT,   PICO_HUB_PACKET_TYPE_REQUEST,  { });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_STATION_DISCONNECT,   PICO_HUB_PACKET_TYPE_RESPONSE, { });

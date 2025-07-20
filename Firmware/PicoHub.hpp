@@ -77,7 +77,9 @@ void             pico_hub_uart_deinit(PICO_HUB_UART bus);
 bool             pico_hub_uart_read(PICO_HUB_UART bus, void* buffer, size_t size);
 bool             pico_hub_uart_write(PICO_HUB_UART bus, const void* buffer, size_t size);
 
-bool             pico_hub_wifi_scan(pico_hub_wifi_scan_callback callback, void* param);
+// @return 0 on error
+// @return -1 on callback returned false
+int              pico_hub_wifi_scan(pico_hub_wifi_scan_callback callback, void* param);
 bool             pico_hub_wifi_ap_open(const char* ssid, const char* passwd, PICO_HUB_WIFI_AUTH auth, uint8_t channel);
 void             pico_hub_wifi_ap_close();
 bool             pico_hub_wifi_station_connect(const char* ssid, const char* passwd, PICO_HUB_WIFI_AUTH auth);
