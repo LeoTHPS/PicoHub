@@ -124,6 +124,7 @@ bool pico_hub_packet_handler_uart_init(const void* buffer, size_t size);
 bool pico_hub_packet_handler_uart_deinit(const void* buffer, size_t size);
 bool pico_hub_packet_handler_uart_read(const void* buffer, size_t size);
 bool pico_hub_packet_handler_uart_write(const void* buffer, size_t size);
+bool pico_hub_packet_handler_wifi_get_country(const void* buffer, size_t size);
 bool pico_hub_packet_handler_wifi_scan(const void* buffer, size_t size);
 bool pico_hub_packet_handler_wifi_ap_open(const void* buffer, size_t size);
 bool pico_hub_packet_handler_wifi_ap_close(const void* buffer, size_t size);
@@ -192,11 +193,10 @@ constexpr const pico_hub_packet_context pico_hub_packet_handlers[PICO_HUB_OPCODE
 	{ PICO_HUB_OPCODE_UART_READ,                 &pico_hub_packet_handler_uart_read },
 	{ PICO_HUB_OPCODE_UART_WRITE,                &pico_hub_packet_handler_uart_write },
 
+	{ PICO_HUB_OPCODE_WIFI_GET_COUNTRY,          &pico_hub_packet_handler_wifi_get_country },
 	{ PICO_HUB_OPCODE_WIFI_SCAN,                 &pico_hub_packet_handler_wifi_scan },
-
 	{ PICO_HUB_OPCODE_WIFI_AP_OPEN,              &pico_hub_packet_handler_wifi_ap_open },
 	{ PICO_HUB_OPCODE_WIFI_AP_CLOSE,             &pico_hub_packet_handler_wifi_ap_close },
-
 	{ PICO_HUB_OPCODE_WIFI_STATION_CONNECT,      &pico_hub_packet_handler_wifi_station_connect },
 	{ PICO_HUB_OPCODE_WIFI_STATION_DISCONNECT,   &pico_hub_packet_handler_wifi_station_disconnect }
 };
@@ -481,14 +481,13 @@ auto pico_hub_wifi_auth_from_cyw43(uint32_t value)
 		case CYW43_AUTH_WPA2_MIXED_PSK:    return PICO_HUB_WIFI_AUTH_WPA2_MIXED_PSK;
 		case CYW43_AUTH_WPA3_SAE_AES_PSK:  return PICO_HUB_WIFI_AUTH_WPA3_SAE_AES_PSK;
 		case CYW43_AUTH_WPA3_WPA2_AES_PSK: return PICO_HUB_WIFI_AUTH_WPA3_WPA2_AES_PSK;
-
-		// TODO: remove these when cyw43_ll.c:cyw43_ll_wifi_parse_scan_result is fully implemented
-		case 1:                            return (PICO_HUB_WIFI_AUTH)0xFF; // wep is unsupported
-		case 2:                            return PICO_HUB_WIFI_AUTH_WPA_TKIP_PSK;
-		case 4:                            return PICO_HUB_WIFI_AUTH_WPA2_AES_PSK;
 	}
 
-	return PICO_HUB_WIFI_AUTH_OPEN;
+	// TODO: remove this when cyw43_ll.c:cyw43_ll_wifi_parse_scan_result is fully implemented
+	if (value & 4) return PICO_HUB_WIFI_AUTH_WPA2_AES_PSK;
+	if (value & 2) return PICO_HUB_WIFI_AUTH_WPA_TKIP_PSK;
+
+	return (PICO_HUB_WIFI_AUTH)0xFF;
 }
 
 auto pico_hub_wifi_station_init(const pico_hub_wifi_station_address& address)
@@ -1779,6 +1778,24 @@ bool             pico_hub_uart_write(PICO_HUB_UART bus, const void* buffer, size
 	return true;
 }
 
+// @return length
+size_t           pico_hub_wifi_get_country(char* value, size_t length)
+{
+	if (value)
+	{
+		size_t ret = 0;
+
+		if (length >= 1)
+			value[ret++] = PICO_CYW43_ARCH_DEFAULT_COUNTRY_CODE & 0xFF;
+
+		if (length >= 2)
+			value[ret++] = (PICO_CYW43_ARCH_DEFAULT_COUNTRY_CODE & 0xFF00) >> 8;
+
+		return ret;
+	}
+
+	return 2;
+}
 // @return 0 on error
 // @return -1 on callback returned false
 int              pico_hub_wifi_scan(pico_hub_wifi_scan_callback callback, void* param)
@@ -2561,6 +2578,18 @@ bool             pico_hub_packet_handler_uart_write(const void* buffer, size_t s
 
 	return false;
 }
+bool             pico_hub_packet_handler_wifi_get_country(const void* buffer, size_t size)
+{
+	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_WIFI_GET_COUNTRY>(buffer, size))
+	{
+		pico_hub_packet_response<PICO_HUB_OPCODE_WIFI_GET_COUNTRY> response = {};
+		response.length = pico_hub_wifi_get_country(response.value, sizeof(response.value));
+
+		return pico_hub_io_send_response(response);
+	}
+
+	return false;
+}
 bool             pico_hub_packet_handler_wifi_scan(const void* buffer, size_t size)
 {
 	if (auto request = pico_hub_io_get_request<PICO_HUB_OPCODE_WIFI_SCAN>(buffer, size))
@@ -2579,6 +2608,7 @@ bool             pico_hub_packet_handler_wifi_scan(const void* buffer, size_t si
 				if (length > sizeof(response->ssid))
 					length = sizeof(response->ssid);
 
+				response->ssid_length = length;
 				memcpy(response->ssid, network->ssid, length);
 			}
 

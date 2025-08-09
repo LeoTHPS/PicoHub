@@ -108,6 +108,7 @@ extern "C"
 	PICO_HUB_EXPORT int       pico_hub_uart_read(pico_hub* hub, PICO_HUB_UART bus, void* buffer, size_t size);
 	PICO_HUB_EXPORT int       pico_hub_uart_write(pico_hub* hub, PICO_HUB_UART bus, const void* buffer, size_t size);
 
+	PICO_HUB_EXPORT int       pico_hub_wifi_get_country(pico_hub* hub, char* value, size_t* length);
 	PICO_HUB_EXPORT int       pico_hub_wifi_scan(pico_hub* hub, pico_hub_wifi_scan_callback callback, void* param);
 	PICO_HUB_EXPORT int       pico_hub_wifi_ap_open(pico_hub* hub, const char* ssid, const char* passwd, PICO_HUB_WIFI_AUTH auth, uint8_t channel);
 	PICO_HUB_EXPORT int       pico_hub_wifi_ap_close(pico_hub* hub);

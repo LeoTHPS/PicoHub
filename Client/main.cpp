@@ -2,6 +2,19 @@
 
 #include <iostream>
 
+int         pico_hub_wifi_get_country(pico_hub* hub, std::string& string)
+{
+	char   buffer[3];
+	size_t buffer_length = 2;
+
+	if (auto error = pico_hub_wifi_get_country(hub, buffer, &buffer_length))
+		return error;
+
+	string.assign(buffer, buffer_length);
+
+	return PICO_HUB_ERROR_NONE;
+}
+
 const char* pico_hub_voltage_to_string(PICO_HUB_VOLTAGE value)
 {
 	switch (value)
@@ -170,6 +183,9 @@ int main(int argc, char* argv[])
 		}
 
 		pico_hub_get_and_display_pinout(hub);
+
+		if (std::string country; !pico_hub_wifi_get_country(hub, country))
+			std::cout << "WiFi Country: " << country << std::endl;
 
 		std::cout << "Scanning WiFi" << std::endl;
 		pico_hub_wifi_scan(hub, [](pico_hub* hub, const pico_hub_wifi_network* network, void* param) {

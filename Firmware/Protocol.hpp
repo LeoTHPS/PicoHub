@@ -228,6 +228,7 @@ enum PICO_HUB_OPCODES : uint8_t
 	PICO_HUB_OPCODE_UART_READ,
 	PICO_HUB_OPCODE_UART_WRITE,
 
+	PICO_HUB_OPCODE_WIFI_GET_COUNTRY,
 	PICO_HUB_OPCODE_WIFI_SCAN,
 	PICO_HUB_OPCODE_WIFI_AP_OPEN,
 	PICO_HUB_OPCODE_WIFI_AP_CLOSE,
@@ -482,6 +483,8 @@ PICO_HUB_PACKET(PICO_HUB_OPCODE_UART_READ,                 PICO_HUB_PACKET_TYPE_
 PICO_HUB_PACKET(PICO_HUB_OPCODE_UART_WRITE,                PICO_HUB_PACKET_TYPE_REQUEST,  { PICO_HUB_UART bus; uint32_t size; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_UART_WRITE,                PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; });
 
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_GET_COUNTRY,          PICO_HUB_PACKET_TYPE_REQUEST,  { });
+PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_GET_COUNTRY,          PICO_HUB_PACKET_TYPE_RESPONSE, { char value[2]; uint8_t length; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_SCAN,                 PICO_HUB_PACKET_TYPE_REQUEST,  { });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_SCAN,                 PICO_HUB_PACKET_TYPE_RESPONSE, { bool success; bool end; PICO_HUB_WIFI_AUTH auth; char ssid[32]; uint8_t ssid_length; uint8_t bssid[6]; int16_t rssi; uint8_t channel; });
 PICO_HUB_PACKET(PICO_HUB_OPCODE_WIFI_AP_OPEN,              PICO_HUB_PACKET_TYPE_REQUEST,  { PICO_HUB_WIFI_AUTH auth; char ssid[32]; uint8_t ssid_length; char passwd[40]; uint8_t passwd_length; uint8_t channel; });
@@ -561,6 +564,7 @@ union pico_hub_packets
 	_pico_hub_packets<PICO_HUB_OPCODE_UART_READ>                 uart_read;
 	_pico_hub_packets<PICO_HUB_OPCODE_UART_WRITE>                uart_write;
 
+	_pico_hub_packets<PICO_HUB_OPCODE_WIFI_GET_COUNTRY>          wifi_get_country;
 	_pico_hub_packets<PICO_HUB_OPCODE_WIFI_SCAN>                 wifi_scan;
 	_pico_hub_packets<PICO_HUB_OPCODE_WIFI_AP_OPEN>              wifi_ap_open;
 	_pico_hub_packets<PICO_HUB_OPCODE_WIFI_AP_CLOSE>             wifi_ap_close;

@@ -1368,6 +1368,23 @@ int       pico_hub_uart_write(pico_hub* hub, PICO_HUB_UART bus, const void* buff
 	return PICO_HUB_ERROR_NONE;
 }
 
+int       pico_hub_wifi_get_country(pico_hub* hub, char* value, size_t* length)
+{
+	pico_hub_packet_request<PICO_HUB_OPCODE_WIFI_GET_COUNTRY>  request;
+	pico_hub_packet_response<PICO_HUB_OPCODE_WIFI_GET_COUNTRY> response;
+
+	if (!pico_hub_io_send_request_receive_response(hub->io, request, response))
+		return PICO_HUB_ERROR_IO_ERROR;
+
+	auto value_length = *length;
+
+	*length = 0;
+
+	for (size_t i = 0; (i < value_length) && (i < response.length); ++i, ++*length)
+		value[i] = response.value[i];
+
+	return PICO_HUB_ERROR_NONE;
+}
 int       pico_hub_wifi_scan(pico_hub* hub, pico_hub_wifi_scan_callback callback, void* param)
 {
 	pico_hub_wifi_network                               network;

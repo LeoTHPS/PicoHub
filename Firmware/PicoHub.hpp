@@ -77,6 +77,8 @@ void             pico_hub_uart_deinit(PICO_HUB_UART bus);
 bool             pico_hub_uart_read(PICO_HUB_UART bus, void* buffer, size_t size);
 bool             pico_hub_uart_write(PICO_HUB_UART bus, const void* buffer, size_t size);
 
+// @return length
+size_t           pico_hub_wifi_get_country(char* value, size_t length);
 // @return 0 on error
 // @return -1 on callback returned false
 int              pico_hub_wifi_scan(pico_hub_wifi_scan_callback callback, void* param);
