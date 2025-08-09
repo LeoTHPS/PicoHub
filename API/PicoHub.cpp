@@ -3,6 +3,7 @@
 #include <Firmware/Base16.hpp>
 
 #include <chrono>
+#include <string>
 #include <utility>
 #include <iostream>
 #include <unordered_map>
@@ -1387,6 +1388,7 @@ int       pico_hub_wifi_get_country(pico_hub* hub, char* value, size_t* length)
 }
 int       pico_hub_wifi_scan(pico_hub* hub, pico_hub_wifi_scan_callback callback, void* param)
 {
+	std::string                                         ssid;
 	pico_hub_wifi_network                               network;
 	pico_hub_packet_request<PICO_HUB_OPCODE_WIFI_SCAN>  request;
 	pico_hub_packet_response<PICO_HUB_OPCODE_WIFI_SCAN> response;
@@ -1404,9 +1406,11 @@ int       pico_hub_wifi_scan(pico_hub* hub, pico_hub_wifi_scan_callback callback
 
 		if (!response.end)
 		{
+			ssid.assign(response.ssid, response.ssid_length);
+
 			network.rssi    = response.rssi;
 			network.auth    = response.auth;
-			network.ssid    = response.ssid;
+			network.ssid    = ssid.c_str();
 			network.channel = response.channel;
 			memcpy(network.bssid, response.bssid, sizeof(pico_hub_wifi_network::bssid));
 
