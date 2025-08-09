@@ -1603,7 +1603,7 @@ bool             pico_hub_gpio_set_function(uint8_t pin, int value)
 
 	auto gpio = &pico_hub.gpio[pin];
 
-	if (gpio->is_initialized)
+	if (gpio->is_initialized && (value != PICO_HUB_GPIO_FUNCTION_NONE))
 		return false;
 
 	gpio->pin            = pin;
