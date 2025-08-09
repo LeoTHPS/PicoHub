@@ -4,8 +4,8 @@
 
 int         pico_hub_wifi_get_country(pico_hub* hub, std::string& string)
 {
-	char   buffer[3];
-	size_t buffer_length = 2;
+	char   buffer[2];
+	size_t buffer_length = sizeof(buffer);
 
 	if (auto error = pico_hub_wifi_get_country(hub, buffer, &buffer_length))
 		return error;
