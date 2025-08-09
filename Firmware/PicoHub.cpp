@@ -277,16 +277,27 @@ struct pico_hub_uart
 	uint8_t      pin_tx;
 };
 
+#pragma pack(push, 1)
+struct pico_hub_wifi_station_address
+{
+	uint8_t value[6];
+};
+#pragma pack(pop)
+struct pico_hub_wifi_station
+{
+	pico_hub_wifi_station_address address;
+};
 struct pico_hub_wifi
 {
 	struct
 	{
-		bool               is_open;
+		bool                               is_open;
 
-		PICO_HUB_WIFI_AUTH auth;
-		std::string        ssid;
-		std::string        passwd;
-		uint8_t            channel;
+		PICO_HUB_WIFI_AUTH                 auth;
+		std::string                        ssid;
+		std::string                        passwd;
+		uint8_t                            channel;
+		std::vector<pico_hub_wifi_station> stations;
 	} ap;
 
 	struct
@@ -480,6 +491,16 @@ auto pico_hub_wifi_auth_from_cyw43(uint32_t value)
 	return PICO_HUB_WIFI_AUTH_OPEN;
 }
 
+auto pico_hub_wifi_station_init(const pico_hub_wifi_station_address& address)
+{
+	pico_hub_wifi_station station =
+	{
+		.address = address
+	};
+
+	return station;
+}
+
 bool             pico_hub_init()
 {
 	assert(!pico_hub.is_created);
@@ -569,9 +590,24 @@ bool             pico_hub_poll()
 {
 #if defined(LIB_PICO_CYW43_ARCH) && CYW43_LWIP
 	if (pico_hub.wifi.ap.is_open)
-		cyw43_arch_lwip_sync([]() {
-			// TODO: update connected station list
+	{
+		std::vector<pico_hub_wifi_station_address> station_addresses;
+
+		cyw43_arch_lwip_sync([&station_addresses]() {
+			int stations_count;
+
+			cyw43_wifi_ap_get_max_stas(&cyw43_state, &stations_count);
+
+			station_addresses.resize(stations_count);
+
+			cyw43_wifi_ap_get_stas(&cyw43_state, &stations_count, (uint8_t*)&station_addresses[0]);
 		});
+
+		pico_hub.wifi.ap.stations.resize(station_addresses.size());
+
+		for (size_t i = 0; i < station_addresses.size(); ++i)
+			pico_hub.wifi.ap.stations[i] = pico_hub_wifi_station_init(station_addresses[i]);
+	}
 
 	if (pico_hub.wifi.station.is_open)
 		switch (cyw43_arch_lwip_sync(cyw43_wifi_link_status, &cyw43_state, CYW43_ITF_STA))
@@ -1844,6 +1880,7 @@ void             pico_hub_wifi_ap_close()
 	{
 		cyw43_arch_disable_ap_mode();
 
+		pico_hub.wifi.ap.stations.resize(0);
 		pico_hub.wifi.ap.is_open = false;
 	}
 #endif
