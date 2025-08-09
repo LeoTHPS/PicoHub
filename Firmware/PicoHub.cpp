@@ -535,7 +535,7 @@ bool             pico_hub_init()
 	pico_hub.is_connected = false;
 
 #ifdef LIB_PICO_CYW43_ARCH
-	cyw43_arch_init_with_country(CYW43_COUNTRY_USA); // TODO: country code
+	cyw43_arch_init();
 	cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, true);
 #else
 	pico_hub_gpio_init(PICO_HUB_GPIO_25, true, true);

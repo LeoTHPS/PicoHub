@@ -34,6 +34,10 @@ target_link_libraries(PicoHub
 	hardware_resets
 )
 
+target_compile_definitions(PicoHub PRIVATE
+	-DPICO_CYW43_ARCH_DEFAULT_COUNTRY_CODE=${PICO_CYW43_ARCH_DEFAULT_COUNTRY_CODE}
+)
+
 if(PICO_BOARD STREQUAL pico_w)
 	target_link_libraries(PicoHub pico_lwip pico_cyw43_arch_lwip_threadsafe_background)
 	target_include_directories(PicoHub PRIVATE ${CMAKE_CURRENT_LIST_DIR})
