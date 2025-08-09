@@ -46,6 +46,8 @@ static_assert(PICO_HUB_GPIO_DRIVE_STRENGTH_4MA  == (int)GPIO_DRIVE_STRENGTH_4MA)
 static_assert(PICO_HUB_GPIO_DRIVE_STRENGTH_8MA  == (int)GPIO_DRIVE_STRENGTH_8MA);
 static_assert(PICO_HUB_GPIO_DRIVE_STRENGTH_12MA == (int)GPIO_DRIVE_STRENGTH_12MA);
 
+static_assert(PICO_HUB_WIFI_AUTH_OPEN           == CYW43_AUTH_OPEN);
+
 static_assert(PICO_HUB_VOLTAGE_0_85             == (int)VREG_VOLTAGE_0_85);
 static_assert(PICO_HUB_VOLTAGE_0_90             == (int)VREG_VOLTAGE_0_90);
 static_assert(PICO_HUB_VOLTAGE_0_95             == (int)VREG_VOLTAGE_0_95);
@@ -458,7 +460,7 @@ auto pico_hub_wifi_auth_to_cyw43(PICO_HUB_WIFI_AUTH value)
 
 	return CYW43_AUTH_OPEN;
 }
-auto pico_hub_wifi_auth_from_cyw43(int value)
+auto pico_hub_wifi_auth_from_cyw43(uint32_t value)
 {
 	switch (value)
 	{
@@ -468,6 +470,11 @@ auto pico_hub_wifi_auth_from_cyw43(int value)
 		case CYW43_AUTH_WPA2_MIXED_PSK:    return PICO_HUB_WIFI_AUTH_WPA2_MIXED_PSK;
 		case CYW43_AUTH_WPA3_SAE_AES_PSK:  return PICO_HUB_WIFI_AUTH_WPA3_SAE_AES_PSK;
 		case CYW43_AUTH_WPA3_WPA2_AES_PSK: return PICO_HUB_WIFI_AUTH_WPA3_WPA2_AES_PSK;
+
+		// TODO: remove these when cyw43_ll.c:cyw43_ll_wifi_parse_scan_result is fully implemented
+		case 1:                            return (PICO_HUB_WIFI_AUTH)0xFF; // wep is unsupported
+		case 2:                            return PICO_HUB_WIFI_AUTH_WPA_TKIP_PSK;
+		case 4:                            return PICO_HUB_WIFI_AUTH_WPA2_AES_PSK;
 	}
 
 	return PICO_HUB_WIFI_AUTH_OPEN;
