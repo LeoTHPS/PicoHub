@@ -1781,6 +1781,7 @@ bool             pico_hub_uart_write(PICO_HUB_UART bus, const void* buffer, size
 // @return length
 size_t           pico_hub_wifi_get_country(char* value, size_t length)
 {
+#if defined(LIB_PICO_CYW43_ARCH) && CYW43_LWIP
 	if (value)
 	{
 		size_t ret = 0;
@@ -1795,6 +1796,9 @@ size_t           pico_hub_wifi_get_country(char* value, size_t length)
 	}
 
 	return 2;
+#else
+	return 0;
+#endif
 }
 // @return 0 on error
 // @return -1 on callback returned false
