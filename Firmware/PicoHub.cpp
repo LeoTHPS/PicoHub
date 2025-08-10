@@ -433,30 +433,6 @@ bool pico_hub_io_receive_and_execute_request()
 	return true;
 }
 
-bool pico_hub_debug_blink(uint32_t count = 1, uint32_t delay = 500)
-{
-	bool state;
-
-	if (!pico_hub_get_led(&state))
-		return false;
-
-	for (uint32_t i = 0; i < count; )
-	{
-		if (!pico_hub_set_led(!state))
-			return false;
-
-		sleep_ms(delay);
-
-		if (!pico_hub_set_led(state))
-			return false;
-
-		if (++i < count)
-			sleep_ms(delay);
-	}
-
-	return true;
-}
-
 auto pico_hub_wifi_auth_to_cyw43(PICO_HUB_WIFI_AUTH value)
 {
 	switch (value)
@@ -498,6 +474,30 @@ auto pico_hub_wifi_station_init(const pico_hub_wifi_station_address& address)
 	};
 
 	return station;
+}
+
+bool pico_hub_debug_blink(uint32_t count = 1, uint32_t delay = 500)
+{
+	bool state;
+
+	if (!pico_hub_get_led(&state))
+		return false;
+
+	for (uint32_t i = 0; i < count; )
+	{
+		if (!pico_hub_set_led(!state))
+			return false;
+
+		sleep_ms(delay);
+
+		if (!pico_hub_set_led(state))
+			return false;
+
+		if (++i < count)
+			sleep_ms(delay);
+	}
+
+	return true;
 }
 
 bool             pico_hub_init()
