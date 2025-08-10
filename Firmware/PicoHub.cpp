@@ -46,7 +46,9 @@ static_assert(PICO_HUB_GPIO_DRIVE_STRENGTH_4MA  == (int)GPIO_DRIVE_STRENGTH_4MA)
 static_assert(PICO_HUB_GPIO_DRIVE_STRENGTH_8MA  == (int)GPIO_DRIVE_STRENGTH_8MA);
 static_assert(PICO_HUB_GPIO_DRIVE_STRENGTH_12MA == (int)GPIO_DRIVE_STRENGTH_12MA);
 
+#ifdef LIB_PICO_CYW43_ARCH
 static_assert(PICO_HUB_WIFI_AUTH_OPEN           == CYW43_AUTH_OPEN);
+#endif
 
 static_assert(PICO_HUB_VOLTAGE_0_85             == (int)VREG_VOLTAGE_0_85);
 static_assert(PICO_HUB_VOLTAGE_0_90             == (int)VREG_VOLTAGE_0_90);
@@ -335,6 +337,7 @@ struct
 	char                   packets_buffer[((sizeof(pico_hub_packet_header) + sizeof(pico_hub_packets)) * 2) + 1] = {};
 } pico_hub;
 
+#ifdef LIB_PICO_CYW43_ARCH
 template<typename F, typename ... TArgs>
 auto cyw43_arch_lwip_sync(F&& function, TArgs ... args)
 {
@@ -353,6 +356,7 @@ auto cyw43_arch_lwip_sync(F&& function, TArgs ... args)
 		return result;
 	}
 }
+#endif
 
 bool pico_hub_io_send(const void* buffer, size_t size)
 {
@@ -433,6 +437,7 @@ bool pico_hub_io_receive_and_execute_request()
 	return true;
 }
 
+#ifdef LIB_PICO_CYW43_ARCH
 auto pico_hub_wifi_auth_to_cyw43(PICO_HUB_WIFI_AUTH value)
 {
 	switch (value)
@@ -475,6 +480,7 @@ auto pico_hub_wifi_station_init(const pico_hub_wifi_station_address& address)
 
 	return station;
 }
+#endif
 
 bool pico_hub_debug_blink(uint32_t count = 1, uint32_t delay = 500)
 {
