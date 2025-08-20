@@ -3,7 +3,7 @@
 
 constexpr void pico_hub_base16_encode(char& c1, char& c2, uint8_t value)
 {
-	c1 = 'a' + value >> 4;
+	c1 = 'a' + (value >> 4);
 	c2 = 'a' + (value & 0x0F);
 }
 
